@@ -1,0 +1,3 @@
+SpeechRecognition
+PyAudio
+spacy
