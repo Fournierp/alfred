@@ -1,23 +1,13 @@
 # alfred
 
-## CodeJam(2018) Submission
+## Code.Jam(2018): Patter Recognition :trophy:
 
-This project earned me the Second Position at the Natural Language Processing Competition.
+This project earned me the Second Position in the Natural Language Processing category.
+
+## Introduction
 
 Alfred is your personal Virtual Assistant for your Finances.
-Call Alfred and tell him any of you urging Investments needs.
 
-Installation
-pip install requirements.txt
+## Dashboard
 
-
-// pip install SpeechRecognition
-
-
-// pip install PyAudio
-
-
-// pip install spacy
-
-
-https://www.nasdaq.com/quotes/nasdaq-100-stocks.aspx
+Get the latest information about the top 100 companies listed on NASDAQ and inform yourself before investing.

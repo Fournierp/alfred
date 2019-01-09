@@ -1,2 +1,3 @@
 .ipynb_checkpoints/
-Présentation.pptx
+__pycache__/
+api_key.json
