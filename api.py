@@ -53,3 +53,39 @@ def stock(company_symbols, type):
     closing = [series[day]["4. close"] for day in days]
 
     return days, closing
+
+
+def get_news_sources():
+    # Get the api key
+    with open('api_key.json') as f:
+        data = json.load(f)
+        api_key = data["newsapi"]
+
+    url = ('https://newsapi.org/v2/sources?language=en&'
+            'apiKey=' + api_key)
+
+    response = requests.get(url)
+    json_res = response.json()["sources"]
+    sources = [[source["name"]] for source in json_res]
+    ids = [source["id"] for source in json_res]
+
+    options=[]
+    # Get the company name and symbol.
+    for i in range(len(sources)):
+        new_source = {'label': sources[i][0], 'value': ids[i]}
+        options.append(new_source)
+
+    return options
+
+
+def articles(company_name, sources):
+    # Get the api key
+    with open('api_key.json') as f:
+        data = json.load(f)
+        api_key = data["newsapi"]
+
+    # newsapi = yes.NewsApiClient(api_key=api_key)
+    #
+    # top_headlines = newsapi.get_top_headlines(q=company_name,
+    #                                           sources=sources,
+    #                                           language='en')
