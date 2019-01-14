@@ -5,7 +5,6 @@ import json
 import matplotlib.pyplot as plt
 import urllib.request
 
-
 def nasdaq_parse(link):
     """
     Get a list of the top 100 companies listed on NASDAQ
@@ -34,7 +33,7 @@ def nasdaq_format(companies):
     return options
 
 
-def stock(company_symbols, type):
+def get_stocks(company_symbols, type):
     """
     Make API call to get the stock variations of the selected companies
     """
@@ -78,14 +77,24 @@ def get_news_sources():
     return options
 
 
-def articles(company_name, sources):
+def get_articles(companies):
+    # Get the news sources
+    sources = get_news_sources()
+    # Format the news sources
+    formatted_sources = ""
+    for source in sources:
+        formatted_sources += source["value"] + ','
+
     # Get the api key
     with open('api_key.json') as f:
         data = json.load(f)
         api_key = data["newsapi"]
 
-    # newsapi = yes.NewsApiClient(api_key=api_key)
-    #
-    # top_headlines = newsapi.get_top_headlines(q=company_name,
-    #                                           sources=sources,
-    #                                           language='en')
+    # Get the articles
+    contents = urllib.request.urlopen("http://newsapi.org/v2/everything?sources="
+    + formatted_sources + "&q=" + companies[0] + "&apikey=" + api_key).read()
+
+    # Parse them
+    json_res = json.loads(contents)
+
+    return json_res
