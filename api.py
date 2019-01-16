@@ -77,14 +77,41 @@ def get_news_sources():
     return options
 
 
-def get_articles(companies):
-    # Get the news sources
-    sources = get_news_sources()
-    # Format the news sources
+def format_companies(companies):
+    nasdaq = nasdaq_parse("https://www.nasdaq.com/quotes/nasdaq-100-stocks.aspx")
+
+    formatted_companies = ""
+    for company in nasdaq:
+        if(company['value'] == companies[0]):
+
+            if(company['label'][-6:] == ", Inc."):
+                return company['label'][:-6]
+
+            if(company['label'][-5:] == ", Inc"):
+                return company['label'][:-5]
+
+            if(company['label'][-5:] == " Inc."):
+                return company['label'][:-5]
+
+            return company['label']
+
+
+def format_sources(sources):
     formatted_sources = ""
     for source in sources:
         formatted_sources += source["value"] + ','
 
+    return formatted_sources
+
+
+def get_articles(companies, date):
+    # Get the news sources
+    sources = get_news_sources()
+    # Format the news sources
+    formatted_sources = format_sources(sources)
+    # Format the companies
+    formatted_companies = format_companies(companies)
+    print(formatted_companies)
     # Get the api key
     with open('api_key.json') as f:
         data = json.load(f)
@@ -92,7 +119,8 @@ def get_articles(companies):
 
     # Get the articles
     contents = urllib.request.urlopen("http://newsapi.org/v2/everything?sources="
-    + formatted_sources + "&q=" + companies[0] + "&apikey=" + api_key).read()
+    + formatted_sources + "&q=" + formatted_companies
+    + "&sortBy=relevancy&from=" + date + "&apikey=" + api_key).read()
 
     # Parse them
     json_res = json.loads(contents)
