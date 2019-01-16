@@ -2,6 +2,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
+from datetime import datetime as dt
 
 import pandas as pd
 import plotly.plotly as py
@@ -9,7 +10,6 @@ import plotly.graph_objs as go
 
 import api
 from app import app, server
-
 
 layout = [
     dcc.Dropdown(
@@ -22,21 +22,30 @@ layout = [
 
     dcc.Graph(id='stock-graph'),
 
-    # table div
-    html.Div(
-        id="news_table",
-        className="row",
-        style={
-            "maxHeight": "350px",
-            "overflowY": "scroll",
-            "padding": "8",
-            "marginTop": "5",
-            "backgroundColor":"white",
-            "border": "1px solid #C8D4E3",
-            "borderRadius": "3px"
-        },
+    dcc.DatePickerSingle(
+        id='date-picker-single',
+        # date=dt(2019, 1, 1)
     ),
-]
+
+    html.Div(
+        [
+            html.Div(
+                id="news_table",
+                className="row",
+                style={
+                    "maxHeight": "350px",
+                    "overflowY": "scroll",
+                    "padding": "8",
+                    "marginTop": "5",
+                    "backgroundColor":"white",
+                    "border": "1px solid #C8D4E3",
+                    "borderRadius": "3px"
+                },
+            ),
+        ],
+        className="row tabs_div"
+        )
+    ]
 
 
 @app.callback(
@@ -94,36 +103,32 @@ def get_stocks_daily(value):
 
 @app.callback(
     Output('news_table', 'children'),
-    [Input('company-dropdown', 'value')])
-def news_table(companies):
-    df = pd.DataFrame(columns=["Souce", "Title", "Published At", "Link"])
+    [Input('company-dropdown', 'value'),
+    Input('date-picker-single', 'date')])
+def news_table(companies, date):
+    df = pd.DataFrame(columns=["Souce", "Title", "Published At"])
 
-    if(companies is None):
+    if(companies is None or date is None):
         return
 
-    nasdaq = api.nasdaq_parse("https://www.nasdaq.com/quotes/nasdaq-100-stocks.aspx")
-
-    formatted_companies = ""
-    for company in nasdaq:
-        if(company['value'] == companies[0]):
-            formatted_companies = company['label']
-
-    res = api.get_articles(formatted_companies)
+    res = api.get_articles(companies, date)
 
     number_of_results = res["totalResults"]
 
     if(int(number_of_results) == 0):
         return
-        
+
     else:
         counter = 0
+        links = []
         for result in res["articles"]:
             if(counter > 9):
                 break
             tmp = pd.DataFrame([[result["source"]["name"], result["title"],
-                            result["publishedAt"], result["url"]]],
-                            columns=["Souce", "Title", "Published At", "Link"])
+                            result["publishedAt"][:10]]],
+                            columns=["Souce", "Title", "Published At"])
             df = df.append(tmp, ignore_index=True)
+            links.append(result["url"])
             counter += 1
 
         return html.Table(
@@ -136,6 +141,13 @@ def news_table(companies):
                     [
                         html.Td(df.iloc[i][col])
                         for col in df.columns
+                    ] +
+                    [
+                        html.A(
+                            children='Reference',
+                            target= '_blank',
+                            href=links[i]
+                        ),
                     ]
                 )
                 for i in range(len(df))
