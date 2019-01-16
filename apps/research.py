@@ -22,12 +22,6 @@ layout = [
 
     dcc.Graph(id='stock-graph'),
 
-    dcc.DatePickerRange(
-        id='date-picker',
-        end_date=dt.now(),
-        max_date_allowed=dt.now(),
-    ),
-
     html.Div(
         [
             html.Div(
@@ -105,20 +99,19 @@ def get_stocks_daily(value):
 
 @app.callback(
     Output('news_table', 'children'),
-    [Input('company-dropdown', 'value'),
-    Input('date-picker', 'start_date'),
-    Input('date-picker', 'end_date')])
-def news_table(companies, start, end):
+    [Input('company-dropdown', 'value')])
+def news_table(companies):
     """
     Callback to get the news headlines from the API and fill a table.
     """
     df = pd.DataFrame(columns=["Souce", "Title", "Published on"])
+
     # Return an empty header untill dates and companies are selected
-    if(companies is None or start is None or end is None):
+    if(companies is None or companies == []):
         return
 
     # API call
-    res = api.get_articles(companies, start, end)
+    res = api.get_articles(companies)
 
     # Return an empty table if no headline was found
     number_of_results = res["totalResults"]

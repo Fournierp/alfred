@@ -4,7 +4,8 @@ import ast
 import json
 import matplotlib.pyplot as plt
 import urllib.request
-
+import re
+from datetime import datetime, timedelta
 
 def get_api_key(name):
     with open('api_key.json') as f:
@@ -112,15 +113,15 @@ def format_companies(companies):
         if(company['value'] == companies[0]):
             # Remove junk at the end of the names
             if(company['label'][-6:] == ", Inc."):
-                return company['label'][:-6]
+                return re.sub(r' ', "-", company['label'][:-6])
 
             if(company['label'][-5:] == ", Inc"):
-                return company['label'][:-5]
+                return re.sub(r' ', "-", company['label'][:-5])
 
             if(company['label'][-5:] == " Inc."):
-                return company['label'][:-5]
+                return re.sub(r' ', "-", company['label'][:-5])
 
-            return company['label']
+            return re.sub(r' ', "-", company['label'])
 
 
 def format_sources(sources):
@@ -134,9 +135,9 @@ def format_sources(sources):
     return formatted_sources
 
 
-def get_articles(companies, start, end):
+def get_articles(companies):
     """
-    Function that makes the api calls given company names, start and end dates.
+    Function that makes the api calls given company names.
     """
     # Get the news sources
     sources = get_news_sources()
@@ -146,7 +147,9 @@ def get_articles(companies, start, end):
     formatted_companies = format_companies(companies)
     # Get the api key
     api_key = get_api_key("newsapi")
-
+    # Create a timespan : 14 days
+    end = datetime.now().strftime("%Y-%m-%d")
+    start = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
     # Get the articles
     contents = urllib.request.urlopen("http://newsapi.org/v2/everything?sources="
     + formatted_sources + "&q=" + formatted_companies + "&sortBy=relevancy&from="
