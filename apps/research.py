@@ -63,7 +63,7 @@ def get_stocks_daily(value):
     # For each company selected, make the API call and update the graph
     traces = []
     for symbol in value:
-        days, closing = api.get_stocks(symbol, "TIME_SERIES_DAILY")
+        days, closing = api.get_stocks_daily(symbol)
         traces.append(go.Scatter(
             x=days,
             y=closing,
@@ -79,10 +79,6 @@ def get_stocks_daily(value):
             xaxis=dict(
                 rangeselector=dict(
                     buttons=list([
-                        dict(count=1,
-                             label='1d',
-                             step='day',
-                             stepmode='backward'),
                         dict(count=7,
                              label='1w',
                              step='day',

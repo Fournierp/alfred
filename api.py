@@ -41,7 +41,7 @@ def format_nasdaq(companies):
     return options
 
 
-def get_stocks(company_symbols, type):
+def get_stocks_daily(company_symbols):
     """
     Make API call to get the stock variations of the selected companies
     """
@@ -49,7 +49,7 @@ def get_stocks(company_symbols, type):
     api_key = get_api_key("alphavantage")
     # Make the request
     contents = urllib.request.urlopen("https://www.alphavantage.co/query?function="
-    + type + "&symbol=" + company_symbols + "&apikey=" + api_key).read()
+    + "TIME_SERIES_DAILY&symbol=" + company_symbols + "&apikey=" + api_key).read()
     # Parse it
     json_res = json.loads(contents)
     series = json_res["Time Series (Daily)"]
