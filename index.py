@@ -6,7 +6,7 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 
 from app import app, server
-from apps import research
+from apps import research, prediction
 
 
 app.layout = html.Div([
@@ -54,9 +54,7 @@ def render_content(tab):
     elif tab == "two":
         return research.layout
     elif tab == "three":
-        return html.Div([
-            html.H3('Tab content 3')
-        ])
+        return prediction.layout
     else:
         return research.layout
 
