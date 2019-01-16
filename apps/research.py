@@ -22,9 +22,10 @@ layout = [
 
     dcc.Graph(id='stock-graph'),
 
-    dcc.DatePickerSingle(
-        id='date-picker-single',
-        # date=dt(2019, 1, 1)
+    dcc.DatePickerRange(
+        id='date-picker',
+        end_date=dt.now(),
+        max_date_allowed=dt.now(),
     ),
 
     html.Div(
@@ -104,14 +105,15 @@ def get_stocks_daily(value):
 @app.callback(
     Output('news_table', 'children'),
     [Input('company-dropdown', 'value'),
-    Input('date-picker-single', 'date')])
-def news_table(companies, date):
-    df = pd.DataFrame(columns=["Souce", "Title", "Published At"])
+    Input('date-picker', 'start_date'),
+    Input('date-picker', 'end_date')])
+def news_table(companies, start, end):
+    df = pd.DataFrame(columns=["Souce", "Title", "Published on"])
 
-    if(companies is None or date is None):
+    if(companies is None or start is None or end is None):
         return
 
-    res = api.get_articles(companies, date)
+    res = api.get_articles(companies, start, end)
 
     number_of_results = res["totalResults"]
 
