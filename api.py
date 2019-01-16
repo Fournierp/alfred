@@ -59,6 +59,25 @@ def get_stocks_daily(company_symbols):
     return days, closing
 
 
+def get_stocks_intraday(company_symbols):
+    """
+    Make API call to get the stock variations of the selected companies
+    """
+    # Get the api key
+    api_key = get_api_key("alphavantage")
+    # Make the request
+    contents = urllib.request.urlopen("https://www.alphavantage.co/query?function="
+    + "TIME_SERIES_INTRADAY&symbol=" + company_symbols + "&interval=5min&apikey="
+    + api_key).read()
+    # Parse it
+    json_res = json.loads(contents)
+    series = json_res["Time Series (5min)"]
+    days = [day for day in series]
+    closing = [series[day]["4. close"] for day in days]
+
+    return days, closing
+
+
 def get_news_sources():
     """
     Function to get all the support News Sources in English.
