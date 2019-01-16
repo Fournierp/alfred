@@ -53,9 +53,14 @@ layout = [
     Output('stock-graph', 'figure'),
     [Input('company-dropdown', 'value')])
 def get_stocks_daily(value):
+    """
+    Callback to get stock data from the API and draw a graph from it.
+    """
+    # Return an empty graph untill a company is selected
     if(value is None):
         return
 
+    # For each company selected, make the API call and update the graph
     traces = []
     for symbol in value:
         days, closing = api.get_stocks(symbol, "TIME_SERIES_DAILY")
@@ -108,19 +113,28 @@ def get_stocks_daily(value):
     Input('date-picker', 'start_date'),
     Input('date-picker', 'end_date')])
 def news_table(companies, start, end):
+    """
+    Callback to get the news headlines from the API and fill a table.
+    """
     df = pd.DataFrame(columns=["Souce", "Title", "Published on"])
-
+    # Return an empty header untill dates and companies are selected
     if(companies is None or start is None or end is None):
         return
 
+    # API call
     res = api.get_articles(companies, start, end)
 
+    # Return an empty table if no headline was found
     number_of_results = res["totalResults"]
-
     if(int(number_of_results) == 0):
-        return
+        return html.Table(
+            # Header
+            [html.Tr([html.Th(col) for col in df.columns])]
+        )
 
     else:
+        # Take the 10 most relevant articles published in the range and display
+        # the source, the title, the date and link
         counter = 0
         links = []
         for result in res["articles"]:
@@ -128,7 +142,7 @@ def news_table(companies, start, end):
                 break
             tmp = pd.DataFrame([[result["source"]["name"], result["title"],
                             result["publishedAt"][:10]]],
-                            columns=["Souce", "Title", "Published At"])
+                            columns=["Souce", "Title", "Published on"])
             df = df.append(tmp, ignore_index=True)
             links.append(result["url"])
             counter += 1

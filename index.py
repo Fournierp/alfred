@@ -44,6 +44,9 @@ app.layout = html.Div([
     Output("tab_content", "children"),
     [Input("tabs", "value")])
 def render_content(tab):
+    """
+    Callback to switch between tabs.
+    """
     if tab == "one":
         return html.Div([
             html.H3('Tab content 1')
