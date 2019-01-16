@@ -104,38 +104,45 @@ def news_table(companies):
     """
     Callback to get the news headlines from the API and fill a table.
     """
-    df = pd.DataFrame(columns=["Souce", "Title", "Published on"])
+    df = pd.DataFrame(columns=["Souce", "About", "Title", "Published on"])
+    links = []
 
     # Return an empty header untill dates and companies are selected
     if(companies is None or companies == []):
         return
 
-    # API call
-    res = api.get_articles(companies)
+    # For each company
+    for company in companies:
+        # Make an API call
+        res = api.get_articles(company)
+
+        # Skip if no headline was found
+        number_of_results = res["totalResults"]
+        if(int(number_of_results) == 0):
+            continue
+
+        else:
+            # Take the 10 most relevant articles published in the range and display
+            # the source, the company name, the title, the date and link
+            counter = 0
+            for result in res["articles"]:
+                if(counter > 9):
+                    break
+                tmp = pd.DataFrame([[result["source"]["name"], company,
+                                    result["title"], result["publishedAt"][:10]]],
+                                columns=["Souce", "About", "Title", "Published on"])
+                df = df.append(tmp, ignore_index=True)
+                links.append(result["url"])
+                counter += 1
 
     # Return an empty table if no headline was found
-    number_of_results = res["totalResults"]
-    if(int(number_of_results) == 0):
+    if(len(links) == 0):
         return html.Table(
             # Header
             [html.Tr([html.Th(col) for col in df.columns])]
         )
-
+    # Else print the articles
     else:
-        # Take the 10 most relevant articles published in the range and display
-        # the source, the title, the date and link
-        counter = 0
-        links = []
-        for result in res["articles"]:
-            if(counter > 9):
-                break
-            tmp = pd.DataFrame([[result["source"]["name"], result["title"],
-                            result["publishedAt"][:10]]],
-                            columns=["Souce", "Title", "Published on"])
-            df = df.append(tmp, ignore_index=True)
-            links.append(result["url"])
-            counter += 1
-
         return html.Table(
             # Header
             [html.Tr([html.Th(col) for col in df.columns])] +

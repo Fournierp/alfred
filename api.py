@@ -101,7 +101,7 @@ def get_news_sources():
     return options
 
 
-def format_companies(companies):
+def format_companies(company):
     """
     Format the selected company so that the API can find relevant articles.
     """
@@ -109,19 +109,19 @@ def format_companies(companies):
     nasdaq = nasdaq_parse("https://www.nasdaq.com/quotes/nasdaq-100-stocks.aspx")
     # Find the right company name given the symbol
     formatted_companies = ""
-    for company in nasdaq:
-        if(company['value'] == companies[0]):
+    for nasdaq_company in nasdaq:
+        if(nasdaq_company['value'] == company):
             # Remove junk at the end of the names
-            if(company['label'][-6:] == ", Inc."):
-                return re.sub(r' ', "-", company['label'][:-6])
+            if(nasdaq_company['label'][-6:] == ", Inc."):
+                return re.sub(r' ', "-", nasdaq_company['label'][:-6])
 
-            if(company['label'][-5:] == ", Inc"):
-                return re.sub(r' ', "-", company['label'][:-5])
+            if(nasdaq_company['label'][-5:] == ", Inc"):
+                return re.sub(r' ', "-", nasdaq_company['label'][:-5])
 
-            if(company['label'][-5:] == " Inc."):
-                return re.sub(r' ', "-", company['label'][:-5])
+            if(nasdaq_company['label'][-5:] == " Inc."):
+                return re.sub(r' ', "-", nasdaq_company['label'][:-5])
 
-            return re.sub(r' ', "-", company['label'])
+            return re.sub(r' ', "-", nasdaq_company['label'])
 
 
 def format_sources(sources):
@@ -135,7 +135,7 @@ def format_sources(sources):
     return formatted_sources
 
 
-def get_articles(companies):
+def get_articles(company):
     """
     Function that makes the api calls given company names.
     """
@@ -144,7 +144,7 @@ def get_articles(companies):
     # Format the news sources
     formatted_sources = format_sources(sources)
     # Format the companies
-    formatted_companies = format_companies(companies)
+    formatted_company = format_companies(company)
     # Get the api key
     api_key = get_api_key("newsapi")
     # Create a timespan : 14 days
@@ -152,7 +152,7 @@ def get_articles(companies):
     start = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
     # Get the articles
     contents = urllib.request.urlopen("http://newsapi.org/v2/everything?sources="
-    + formatted_sources + "&q=" + formatted_companies + "&sortBy=relevancy&from="
+    + formatted_sources + "&q=" + formatted_company + "&sortBy=relevancy&from="
     + start + "&to=" + end + "&apikey=" + api_key).read()
 
     # Parse them
