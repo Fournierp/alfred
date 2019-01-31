@@ -5,7 +5,6 @@ dash_html_components
 
 lxml
 requests
-urllib
 matplotlib
 newsapi
 
