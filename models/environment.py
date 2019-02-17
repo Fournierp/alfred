@@ -1,7 +1,8 @@
-from agent import Agent
-
 import numpy as np
 import pandas as pd
+import time
+
+from agent import Agent
 
 
 def get_data(path):
@@ -29,28 +30,30 @@ def process_data(df, memory_len, training):
         """
         LSTM_inputs = []
         for i in range(len(df) - memory_len):
-#             LSTM_inputs.append(df[i:(i+memory_len)])
-
-            tmp_df = df[i:(i+memory_len)].copy()
-            tmp_df = tmp_df/tmp_df.iloc[0] - 1
-            LSTM_inputs.append(tmp_df)
+            LSTM_inputs.append(df[i:(i+memory_len)])
 
         LSTM_inputs = [np.array(LSTM_input) for LSTM_input in LSTM_inputs]
         LSTM_inputs = np.array(LSTM_inputs)
         LSTM_inputs = np.reshape(LSTM_inputs, (LSTM_inputs.shape[0], 1, LSTM_inputs.shape[1]))
         # Select the correct data
         if (training):
-            return LSTM_inputs[0:int(len(df)*0.8)]
+            return LSTM_inputs[0:int(len(df)*0.5)]
         else:
-            return LSTM_inputs[int(len(df)*0.8)+1:]
+            return LSTM_inputs[int(len(df)*0.5)+1:]
 
 
-def train_agent(memory_len=10, epochs=50, model_name="dqn"):
+def train_agent(memory_len=100, epochs=50, model_name="dqn"):
     """
-    Function responsible for feeding data to the model,
+    Function responsible for training the model.
+
+    :memory_len: number of previous stock prices use for analysis
+    :epochs: number of episodes of learning
+    :model_name: path of the saved model
+
+    :return: agent
     """
     # Get the training data
-    agent = Agent(process_data(get_data('../input/Data/Stocks/goog.us.txt'), memory_len, True), False, model_name, memory_len)
+    agent = Agent(process_data(get_data('Stocks/goog.us.txt'), memory_len, True), False, model_name, memory_len)
 
     l = len(agent.data) - 1
     total_rewards = []
@@ -67,12 +70,13 @@ def train_agent(memory_len=10, epochs=50, model_name="dqn"):
         for t in range(l):
             # Get the last few stock prices
             state = agent.data[t]
+            next_state = agent.data[t+1]
             # Make a decision
             decision = agent.decision(state)
             # Perform the action
             reward = agent.step(decision)
             # Save the observations
-            agent.memory.append((state, decision, reward, agent.done))
+            agent.memory.append((state, next_state, decision, reward, agent.done))
             # Learn after a certain number of iterations
             if (e + 1) * (t + 1) % agent.batch_size == 0:
                 total_error += agent.learn()
@@ -84,7 +88,7 @@ def train_agent(memory_len=10, epochs=50, model_name="dqn"):
 
         # Save the model
         if e % 10 == 0:
-            agent.model.save(self.model_name + str(e))
+            agent.model.save(agent.model_name + str(e))
 
         # Log
         if (e+1) % show_log_freq == 0:
@@ -92,7 +96,37 @@ def train_agent(memory_len=10, epochs=50, model_name="dqn"):
             log_reward = sum(total_rewards[((e + 1) - show_log_freq):]) / show_log_freq
             log_error = sum(total_errors[((e + 1) - show_log_freq):]) / show_log_freq
             elapsed_time = time.time()-start
-            print('\t'.join(map(str, [e+1, agent.epsilon, log_reward, log_error, elapsed_time])))
+            print('\t'.join(map(str, [e+1, "{0:02f}".format(agent.epsilon), "{0:02f}".format(agent.profit),
+                        "{0:02f}".format(log_reward), "{0:02f}".format(log_error), "{0:02f}".format(elapsed_time)])))
             start = time.time()
 
-train_agent()
+    return agent
+
+
+def evaluate_agent():
+    """
+    Function responsible for testing the model.
+    """
+    # Get the training data
+    agent.data = process_data(get_data('Stocks/goog.us.txt'), agent.input_space, False)
+
+    l = len(agent.data) - 1
+    # Set testing mode
+    agent.reset()
+
+    # For each data point
+    for t in range(l):
+        # Get the last few stock prices
+        state = agent.data[t]
+        # Make a decision
+        decision = agent.decision(state)
+        # Perform the action
+        reward = agent.step(decision)
+
+    print("--------------------------------")
+    print(agent.profit)
+    print("--------------------------------")
+
+if __name__ == '__main__':
+    agent = train_agent()
+    evaluate_agent()

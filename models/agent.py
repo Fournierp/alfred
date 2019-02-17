@@ -3,11 +3,11 @@ import pandas as pd
 from collections import deque
 import math
 
-from tensorflow.keras.models import Model, load_model
-from tensorflow.keras.layers import Dense, Dropout, Input, LSTM
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import Callback
-from tensorflow.keras.losses import categorical_crossentropy
+from keras.models import Model, load_model
+from keras.layers import Dense, Dropout, Input, LSTM
+from keras.optimizers import Adam
+from keras.callbacks import Callback
+from keras.losses import categorical_crossentropy
 
 
 class Agent:
@@ -21,19 +21,21 @@ class Agent:
     def __init__(self, data, prod=False, model_name="", inpute_space=10, decision_space=3):
         self.data = data                  # Data used by the agent
         self.prod = prod                  # Variable to keep track of whether the model is in training
+        self.model_name = model_name      # Path where we save the model and we load it
         self.memory = deque(maxlen=100)   # Last 100 situations (state, decisions, rewards ...)
         self.inventory = []               # Set of all stock prices when they were bought
         self.t = 0                        # Timer
         self.done = False                 # Boolean to indicate if its the last data point
         self.profit = 0                   # Profit made by the agent
 
-        self.gamma = 0.95
+        self.gamma = 0.97
 
         self.epsilon = 1.                 # Threshold for randomizing decision making during training
-        self.epsilon_min = 0.1           # Minimum threshold
-        self.epsilon_decay = 1e-3 #0.999        # Amount by which we reduce the threshold after each batch
+        self.epsilon_min = 0.1            # Minimum threshold
+        self.epsilon_decay = 2*1e-4       # Amount by which we reduce the threshold after each batch
 
-        self.model = load_model(model_name) if prod else self.model((1, inpute_space), decision_space, 16, 0.1)    # Q-Network
+        self.model = load_model(model_name) if prod else self.model((1, inpute_space), decision_space, 32, 0.1)    # Q-Network
+        self.input_space = inpute_space         # Number of inputs for the model
         self.decision_space = decision_space    # Number of decisions the model can make
         self.batch_size = 32              # Number of samples to feed into the model at once
 
@@ -60,14 +62,13 @@ class Agent:
         :return: model
         """
         x = Input(shape=input_shape)
-        hidden = LSTM(2 * neurons, return_sequences=True)(x)
-        hidden = Dropout(dropout)(hidden)
-        hidden = LSTM(neurons, return_sequences=False)(hidden)
-        hidden = Dropout(dropout)(hidden)
-        y = Dense(output_shape, activation='linear')(hidden)
+        hidden = Dense(units=64, activation="relu")(x)
+        hidden = Dense(units=32, activation="relu")(hidden)
+        hidden = Dense(units=8, activation="relu")(hidden)
+        y = Dense(output_shape, activation="linear")(hidden)
 
         model = Model(inputs=x, outputs=y)
-        optimizer = Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-8)
+        optimizer = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8)
         model.compile(loss='mse', optimizer=optimizer, metrics=['mse'])
         return model
 
@@ -84,7 +85,7 @@ class Agent:
         # If the agent is in training and with a random chance.
         if not self.prod and np.random.rand() <= self.epsilon:
             # Return a random decision
-            return np.random.randint(0, 3)
+            return np.random.randint(0, self.decision_space)
         # Else, return the optimal decision chosen by the model
         state = np.reshape(state, (state.shape[0], 1, state.shape[1]))
         options = self.model.predict([state])
@@ -114,14 +115,18 @@ class Agent:
             # Add the current profits to the overall agent's profits
             self.profit += profit
 
+#             profits = 0
+#             for p in self.inventory:
+#                 profits += (self.data[self.t][0][0] - p)
+#             reward += profits
+#             self.profit += profits
+#             self.inventory = []
+
         self.done = True if self.t == len(self.data) - 1 else False
         # Increment timer
         self.t += 1
 
         # Activate the reward
-        # TODO: find a function that better captures the exponential trend.
-#         reward = 1 / (1 + math.exp(-reward))
-#         print(reward)
         if reward > 0:
             reward = 1
         elif reward < 0:
@@ -135,7 +140,6 @@ class Agent:
         Function that decays the threshold that determines when the agent takes random decisions in training.
         """
         if self.epsilon > self.epsilon_min:
-#             self.epsilon *= self.epsilon_decay
             self.epsilon -= self.epsilon_decay
 
 
@@ -161,25 +165,26 @@ class Agent:
         # Generate a mini batch
         mini_batch = self.generate_batch()
         # Extract each element in the batch
-        x_train = np.zeros((len(mini_batch), 1, 10))
-        y_train = np.zeros((len(mini_batch), self.decision_space))
-        for state, decision, reward, done in mini_batch:
+        x_train = np.zeros((len(mini_batch), 1, self.input_space))
+        y_train = np.zeros((len(mini_batch), 1, self.decision_space))
+        for state, next_state, decision, reward, done in mini_batch:
             target = reward
-
-#             if not done:
-#                 target = reward + self.gamma * np.amax(self.model.predict(next_state)[0])
-
+            # Add the reward the model can expect to generate at the next state, to enable longer term planning
+            if not done:
+                next_state = np.reshape(next_state, (next_state.shape[0], 1, next_state.shape[1]))
+                target = reward + self.gamma * np.amax(self.model.predict(next_state)[0])
             # Predict the optimal action to make given the last few data samples
             state = np.reshape(state, (state.shape[0], 1, state.shape[1]))
             target_f = self.model.predict([state])
             x_train[iterations] = state
             # Replace the "likelihood" of the decision that was actually picked (randomly or by the model) with the reward it got.
             # This way, if the reward was negative, then it is likely not picked again, but if it was positive, then the model,
-            # will learn to predict the expected reward given that decision.
-            target_f[0][decision] = target
+            # will learn to predict the expected reward given that decision
+            target_f[0][0][decision] = target
             y_train[iterations] = target_f
+            iterations += 1
 
-        hist = self.model.fit(x_train, y_train, epochs=1, verbose=0)
+        hist = self.model.fit(x_train, [y_train], epochs=1, verbose=0)
         error = np.mean(hist.history['mean_squared_error'][-32:])
 
         # Decay the epsilon
