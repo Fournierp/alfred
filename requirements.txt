@@ -10,3 +10,5 @@ newsapi
 
 pandas
 plotly
+
+sd_material_ui
