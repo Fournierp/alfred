@@ -46,10 +46,64 @@ layout = html.Div([
     ])
 
 
+# @app.callback(
+#     Output('stock-graph-prediction', 'figure'),
+#     [Input('company-dropdown', 'value')])
+# def graph_stocks_daily(value):
+#     """
+#     Callback to get stock data from the API and draw a graph from it.
+#     """
+#     # Return an empty graph untill a company is selected
+#     if(value is None):
+#         return
+#
+#     # For each company selected, make the API call and update the graph
+#     traces = []
+#     for symbol in value:
+#         days, closing = api.get_stocks_daily(symbol)
+#         traces.append(go.Scatter(
+#             x=days,
+#             y=closing,
+#             name=symbol,
+#             line = dict(color = '#17BECF'),
+#             opacity = 0.8
+#         ))
+#
+#     return {
+#         'data': traces,
+#         'layout': go.Layout(
+#             title='Time Series of the Company stock',
+#             xaxis=dict(
+#                 rangeselector=dict(
+#                     buttons=list([
+#                         dict(count=7,
+#                              label='1w',
+#                              step='day',
+#                              stepmode='backward'),
+#                         dict(count=1,
+#                              label='1m',
+#                              step='month',
+#                              stepmode='backward'),
+#                         dict(count=3,
+#                              label='3m',
+#                              step='month',
+#                              stepmode='backward'),
+#                         dict(step='all')
+#                     ])
+#                 ),
+#                 rangeslider=dict(
+#                     visible = True
+#                 ),
+#                 type='date'
+#             )
+#         )
+#     }
+#
+
 @app.callback(
     Output('stock-graph-prediction', 'figure'),
     [Input('company-dropdown', 'value')])
-def graph_stocks_daily(value):
+def graph_stocks_prediction_daily(value):
     """
     Callback to get stock data from the API and draw a graph from it.
     """
@@ -57,17 +111,38 @@ def graph_stocks_daily(value):
     if(value is None):
         return
 
-    # For each company selected, make the API call and update the graph
-    traces = []
-    for symbol in value:
-        days, closing = api.get_stocks_daily(symbol)
-        traces.append(go.Scatter(
-            x=days,
-            y=closing,
-            name=symbol,
-            line = dict(color = '#17BECF'),
-            opacity = 0.8
-        ))
+    # Make the API call
+    days, closing = api.get_stocks_daily(symbol)
+    # Graph the current Stock prices
+    traces.append(go.Scatter(
+        x=days,
+        y=closing,
+        name=symbol,
+        line = dict(color = '#17BECF'),
+        opacity = 0.8
+    ))
+
+    # Load model
+    model = load_model('models/dqn50.h5')
+    # Get the last 100 days stock prices
+    model_input = closing[-100:]
+    # Run model
+    predictions = model.predict(model_input)[0]
+
+    # Get the index
+    start_day = days[-1]
+    days = []
+    for i in range(3):
+        next_day = start_day + datetime.timedelta(days=1)
+        days.append(next_day)
+
+    traces.append(go.Scatter(
+        x=days,
+        y=predictions,
+        name=symbol,
+        line = dict(color = '#56fc0a'),
+        opacity = 0.8
+    ))
 
     return {
         'data': traces,
@@ -116,7 +191,7 @@ def predict_stay_stocks_daily(value):
     # Get the last 100 days stock prices
     model_input = closing[-100:]
     # Load model
-    model = load_model('models/dqn50')
+    model = load_model('models/dqn50.h5')
     # Run model
     decisions = model.predict(model_input)
     # Render output
