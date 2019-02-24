@@ -2,7 +2,8 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
-from datetime import datetime as dt
+from datetime import timedelta
+from datetime import datetime
 import sd_material_ui
 
 import pandas as pd
@@ -12,7 +13,8 @@ import plotly.graph_objs as go
 import api
 from app import app, server
 
-from tensorflow.keras.models import load_model
+import numpy as np
+from tensorflow.keras.models import model_from_json
 
 layout = html.Div([
     dcc.Dropdown(
@@ -25,80 +27,28 @@ layout = html.Div([
 
     dcc.Graph(id='stock-graph-prediction'),
 
-    sd_material_ui.Snackbar(id='rl-stay', open=False, message='Stay', autoHideDuration=4000,
-    bodyStyle={
-        "background": "#119DFF",
-        "border": "1px solid #1125ff",
-        "color": "white",
-    }),
-    sd_material_ui.Snackbar(id='rl-buy', open=False, message='Buy this Stock', autoHideDuration=4000,
-    bodyStyle={
-        "background": "#56fc0a",
-        "border": "1px solid #43cc04",
-        "color": "white",
-    }),
-    sd_material_ui.Snackbar(id='rl-sell', open=False, message='Sell this Stock', autoHideDuration=4000,
-    bodyStyle={
-        "background": "#fc000c",
-        "border": "1px solid #c9040d",
-        "color": "white",
-    }),
+    # sd_material_ui.Snackbar(id='rl-stay', open=False, message='Stay', autoHideDuration=0,
+    # bodyStyle={
+    #     "background": "#119DFF",
+    #     "border": "1px solid #1125ff",
+    #     "color": "white",
+    # }),
+    #
+    # sd_material_ui.Snackbar(id='rl-buy', open=False, message='Buy this Stock', autoHideDuration=0,
+    # bodyStyle={
+    #     "background": "#56fc0a",
+    #     "border": "1px solid #43cc04",
+    #     "color": "white",
+    # }),
+    #
+    # sd_material_ui.Snackbar(id='rl-sell', open=False, message='Sell this Stock', autoHideDuration=0,
+    # bodyStyle={
+    #     "background": "#fc000c",
+    #     "border": "1px solid #c9040d",
+    #     "color": "white",
+    # }),
     ])
 
-
-# @app.callback(
-#     Output('stock-graph-prediction', 'figure'),
-#     [Input('company-dropdown', 'value')])
-# def graph_stocks_daily(value):
-#     """
-#     Callback to get stock data from the API and draw a graph from it.
-#     """
-#     # Return an empty graph untill a company is selected
-#     if(value is None):
-#         return
-#
-#     # For each company selected, make the API call and update the graph
-#     traces = []
-#     for symbol in value:
-#         days, closing = api.get_stocks_daily(symbol)
-#         traces.append(go.Scatter(
-#             x=days,
-#             y=closing,
-#             name=symbol,
-#             line = dict(color = '#17BECF'),
-#             opacity = 0.8
-#         ))
-#
-#     return {
-#         'data': traces,
-#         'layout': go.Layout(
-#             title='Time Series of the Company stock',
-#             xaxis=dict(
-#                 rangeselector=dict(
-#                     buttons=list([
-#                         dict(count=7,
-#                              label='1w',
-#                              step='day',
-#                              stepmode='backward'),
-#                         dict(count=1,
-#                              label='1m',
-#                              step='month',
-#                              stepmode='backward'),
-#                         dict(count=3,
-#                              label='3m',
-#                              step='month',
-#                              stepmode='backward'),
-#                         dict(step='all')
-#                     ])
-#                 ),
-#                 rangeslider=dict(
-#                     visible = True
-#                 ),
-#                 type='date'
-#             )
-#         )
-#     }
-#
 
 @app.callback(
     Output('stock-graph-prediction', 'figure'),
@@ -112,34 +62,64 @@ def graph_stocks_prediction_daily(value):
         return
 
     # Make the API call
-    days, closing = api.get_stocks_daily(symbol)
+    days, closing = api.get_stocks_daily(value)
     # Graph the current Stock prices
+    traces = []
     traces.append(go.Scatter(
         x=days,
         y=closing,
-        name=symbol,
-        line = dict(color = '#17BECF'),
+        name=value + " Stock Prices",
+        line = dict(color = '#1125ff'),
         opacity = 0.8
     ))
 
-    # Load model
-    model = load_model('models/dqn50.h5')
     # Get the last 100 days stock prices
     model_input = closing[-100:]
+    model_input = [float(numeric_string) for numeric_string in model_input]
+    model_input = np.reshape(model_input, (1, 1, 100))
+
+    # Load model
+    json_file = open('models/lstm_prices_model.json', 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    loaded_model = model_from_json(loaded_model_json)
+    # Load weights into new model
+    loaded_model.load_weights("models/lstm_prices.h5")
+
     # Run model
-    predictions = model.predict(model_input)[0]
+    predictions = loaded_model.predict(model_input)
 
     # Get the index
-    start_day = days[-1]
+    start_day = days[0]
+    start_day = datetime.strptime(start_day, '%Y-%m-%d')
     days = []
-    for i in range(3):
-        next_day = start_day + datetime.timedelta(days=1)
-        days.append(next_day)
+    next_day = start_day + timedelta(days=1)
+    days.append(next_day.strftime('%Y-%m-%d'))
+    next_day = next_day + timedelta(days=1)
+    days.append(next_day.strftime('%Y-%m-%d'))
+    next_day = next_day + timedelta(days=1)
+    days.append(next_day.strftime('%Y-%m-%d'))
+    next_day = next_day + timedelta(days=1)
+    days.append(next_day.strftime('%Y-%m-%d'))
+    next_day = next_day + timedelta(days=1)
+    days.append(next_day.strftime('%Y-%m-%d'))
+    next_day = next_day + timedelta(days=1)
+    days.append(next_day.strftime('%Y-%m-%d'))
+    next_day = next_day + timedelta(days=1)
+    days.append(next_day.strftime('%Y-%m-%d'))
+    next_day = next_day + timedelta(days=1)
+    days.append(next_day.strftime('%Y-%m-%d'))
+    next_day = next_day + timedelta(days=1)
+    days.append(next_day.strftime('%Y-%m-%d'))
+    next_day = next_day + timedelta(days=1)
+    days.append(next_day.strftime('%Y-%m-%d'))
 
+    # Graph predictions
     traces.append(go.Scatter(
         x=days,
-        y=predictions,
-        name=symbol,
+        y=predictions[0],
+        name="Predictions",
+        mode = 'lines',
         line = dict(color = '#56fc0a'),
         opacity = 0.8
     ))
@@ -190,12 +170,22 @@ def predict_stay_stocks_daily(value):
     days, closing = api.get_stocks_daily(value)
     # Get the last 100 days stock prices
     model_input = closing[-100:]
+    model_input = [float(numeric_string) for numeric_string in model_input]
+    model_input = np.reshape(model_input, (1, 1, 100))
+
     # Load model
-    model = load_model('models/dqn50.h5')
+    json_file = open('models/dqn_model.json', 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    loaded_model = model_from_json(loaded_model_json)
+    # load weights into new model
+    loaded_model.load_weights("models/dqn_weights.h5")
     # Run model
-    decisions = model.predict(model_input)
+    decisions = loaded_model.predict(model_input)
+
+    print(decisions)
     # Render output
-    if decisions == 0:    # Stay
+    if np.argmax(decisions) == 0:    # Stay
         return True
     else:
         return False
@@ -216,12 +206,20 @@ def predict_buy_stocks_daily(value):
     days, closing = api.get_stocks_daily(value)
     # Get the last 100 days stock prices
     model_input = closing[-100:]
+    model_input = [float(numeric_string) for numeric_string in model_input]
+    model_input = np.reshape(model_input, (1, 1, 100))
     # Load model
-    model = load_model('models/dqn50')
+    json_file = open('models/dqn_model.json', 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    loaded_model = model_from_json(loaded_model_json)
+    # load weights into new model
+    loaded_model.load_weights("models/dqn_weights.h5")
     # Run model
-    decisions = model.predict(model_input)
+    decisions = loaded_model.predict(model_input)
+    json_file.close()
     # Render output
-    if decisions == 1:    # Buy
+    if np.argmax(decisions) == 1:    # Buy
         return True
     else:
         return False
@@ -242,12 +240,22 @@ def predict_sell_stocks_daily(value):
     days, closing = api.get_stocks_daily(value)
     # Get the last 100 days stock prices
     model_input = closing[-100:]
+    model_input = [float(numeric_string) for numeric_string in model_input]
+    model_input = np.reshape(model_input, (1, 1, 100))
+
     # Load model
-    model = load_model('models/dqn50')
+    json_file = open('models/dqn_model.json', 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    loaded_model = model_from_json(loaded_model_json)
+    # load weights into new model
+    loaded_model.load_weights("models/dqn_weights.h5")
     # Run model
-    decisions = model.predict(model_input)
+    decisions = loaded_model.predict(model_input)
+    json_file.close()
+
     # Render output
-    if decisions == 2:    # Sell
+    if np.argmax(decisions) == 2:    # Sell
         return True
     else:
         return False
