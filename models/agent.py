@@ -3,11 +3,11 @@ import pandas as pd
 from collections import deque
 import math
 
-from keras.models import Model, load_model
-from keras.layers import Dense, Dropout, Input, LSTM
-from keras.optimizers import Adam
-from keras.callbacks import Callback
-from keras.losses import categorical_crossentropy
+from tensorflow.keras.models import Model, load_model
+from tensorflow.keras.layers import Dense, Dropout, Input, LSTM
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import Callback
+from tensorflow.keras.losses import categorical_crossentropy
 
 
 class Agent:
