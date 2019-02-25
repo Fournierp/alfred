@@ -24,7 +24,6 @@ app.layout = html.Div([
             id="tabs",
             style={"height":"30","verticalAlign":"middle"},
             children=[
-                dcc.Tab(label="Live", value="one"),
                 dcc.Tab(label="Research", value="two"),
                 dcc.Tab(label="Predictions", value="three"),
             ],
@@ -47,11 +46,7 @@ def render_content(tab):
     """
     Callback to switch between tabs.
     """
-    if tab == "one":
-        return html.Div([
-            html.H3('Tab content 1')
-        ])
-    elif tab == "two":
+    if tab == "two":
         return research.layout
     elif tab == "three":
         return prediction.layout
