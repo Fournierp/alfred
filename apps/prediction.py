@@ -2,21 +2,28 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
-from datetime import timedelta
-from datetime import datetime
 import sd_material_ui
 
-import pandas as pd
+from datetime import timedelta
+from datetime import datetime
+
 import plotly.plotly as py
 import plotly.graph_objs as go
 
 import api
 from app import app, server
+import json
 
 import numpy as np
+import pandas as pd
+
 from tensorflow.keras.models import model_from_json
+from tensorflow.keras import backend as K
 
 layout = html.Div([
+    # Hidden div inside the app that stores the intermediate value
+    html.Div(id='intermediate-value', style={'display': 'none'}),
+
     dcc.Dropdown(
         id='company-dropdown',
         placeholder="Select company",
@@ -47,47 +54,77 @@ layout = html.Div([
     #     "border": "1px solid #c9040d",
     #     "color": "white",
     # }),
+
     ])
 
 
 @app.callback(
-    Output('stock-graph-prediction', 'figure'),
+    Output('intermediate-value', 'children'),
     [Input('company-dropdown', 'value')])
-def graph_stocks_prediction_daily(value):
+def store_data(value):
     """
-    Callback to get stock data from the API and draw a graph from it.
+    Callback to get stock data from the API and store it in a hidden div.
     """
-    # Return an empty graph untill a company is selected
     if(value is None):
         return
 
     # Make the API call
-    days, closing = api.get_stocks_daily(value)
-    # Graph the current Stock prices
+    data = api.get_hidden_stocks_daily(value)
+
+    # Store a JSON serialized version of the data
+    json_data = json.loads(data)
+    return json.dumps(json_data)
+
+
+@app.callback(
+    Output('stock-graph-prediction', 'figure'),
+    [Input('intermediate-value', 'children')])
+def graph_stocks_prediction_daily(json_data):
+    """
+    Callback to get stock data from the hidden div, draw a graph from it and make
+    predictions for the next Stock Prices (and graph those).
+    """
+    # Return an empty graph untill a company is selected
+    # if(json_data is None):
+    #     return
+
+    # Parse
+    json_res = json.loads(json_data)
+    series = json_res["Time Series (Daily)"]
+    days = [day for day in series]
+    closing = [float(series[day]["4. close"]) for day in days]
+
+    # Graph the current Stock Prices
     traces = []
     traces.append(go.Scatter(
         x=days,
         y=closing,
-        name=value + " Stock Prices",
+        name="Stock Prices",
         line = dict(color = '#1125ff'),
         opacity = 0.8
     ))
 
-    # Get the last 100 days stock prices
-    model_input = closing[-100:]
+    # Get the last 25 days stock prices
+    model_input = closing[:25]
     model_input = [float(numeric_string) for numeric_string in model_input]
-    model_input = np.reshape(model_input, (1, 1, 100))
+    model_input = np.reshape(model_input, (1, 1, 25))
 
     # Load model
-    json_file = open('models/lstm_prices_model.json', 'r')
+    json_file = open('models/lstm_variation_model.json', 'r')
     loaded_model_json = json_file.read()
     json_file.close()
     loaded_model = model_from_json(loaded_model_json)
     # Load weights into new model
-    loaded_model.load_weights("models/lstm_prices.h5")
+    loaded_model.load_weights("models/lstm_variations.h5")
 
     # Run model
-    predictions = loaded_model.predict(model_input)
+    prediction = loaded_model.predict(model_input)[0]
+    # Reset for future model predictions
+    K.clear_session()
+
+    # Process predictions from stock variations to stock values
+    variations = prediction + 1
+    predicted = variations * closing[0]
 
     # Get the index
     start_day = days[0]
@@ -103,21 +140,11 @@ def graph_stocks_prediction_daily(value):
     days.append(next_day.strftime('%Y-%m-%d'))
     next_day = next_day + timedelta(days=1)
     days.append(next_day.strftime('%Y-%m-%d'))
-    next_day = next_day + timedelta(days=1)
-    days.append(next_day.strftime('%Y-%m-%d'))
-    next_day = next_day + timedelta(days=1)
-    days.append(next_day.strftime('%Y-%m-%d'))
-    next_day = next_day + timedelta(days=1)
-    days.append(next_day.strftime('%Y-%m-%d'))
-    next_day = next_day + timedelta(days=1)
-    days.append(next_day.strftime('%Y-%m-%d'))
-    next_day = next_day + timedelta(days=1)
-    days.append(next_day.strftime('%Y-%m-%d'))
 
     # Graph predictions
     traces.append(go.Scatter(
         x=days,
-        y=predictions[0],
+        y=predicted,
         name="Predictions",
         mode = 'lines',
         line = dict(color = '#56fc0a'),

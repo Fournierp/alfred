@@ -60,6 +60,19 @@ def get_stocks_daily(company_symbols):
     return days, closing
 
 
+def get_hidden_stocks_daily(company_symbols):
+    """
+    Make API call to get the stock variations of the selected companies and returns
+    it in JSON format
+    """
+    # Get the api key
+    api_key = get_api_key("alphavantage")
+    # Make the request
+    contents = urllib.request.urlopen("https://www.alphavantage.co/query?function="
+    + "TIME_SERIES_DAILY&symbol=" + company_symbols + "&apikey=" + api_key).read()
+    return contents
+
+
 def get_stocks_intraday(company_symbols):
     """
     Make API call to get the stock variations of the selected companies
