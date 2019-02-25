@@ -22,7 +22,7 @@ app.layout = html.Div([
 
         dcc.Tabs(
             id="tabs",
-            style={"height":"20","verticalAlign":"middle"},
+            style={"height":"30","verticalAlign":"middle"},
             children=[
                 dcc.Tab(label="Live", value="one"),
                 dcc.Tab(label="Research", value="two"),

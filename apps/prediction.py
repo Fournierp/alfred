@@ -34,27 +34,13 @@ layout = html.Div([
 
     dcc.Graph(id='stock-graph-prediction'),
 
-    # sd_material_ui.Snackbar(id='rl-stay', open=False, message='Stay', autoHideDuration=0,
-    # bodyStyle={
-    #     "background": "#119DFF",
-    #     "border": "1px solid #1125ff",
-    #     "color": "white",
-    # }),
-    #
-    # sd_material_ui.Snackbar(id='rl-buy', open=False, message='Buy this Stock', autoHideDuration=0,
-    # bodyStyle={
-    #     "background": "#56fc0a",
-    #     "border": "1px solid #43cc04",
-    #     "color": "white",
-    # }),
-    #
-    # sd_material_ui.Snackbar(id='rl-sell', open=False, message='Sell this Stock', autoHideDuration=0,
-    # bodyStyle={
-    #     "background": "#fc000c",
-    #     "border": "1px solid #c9040d",
-    #     "color": "white",
-    # }),
-
+    html.Div(
+        html.Div(
+            id='rl-decision',
+        ),
+        # Use columns for different model prediction
+        # className="two columns",
+    )
     ])
 
 
@@ -84,10 +70,6 @@ def graph_stocks_prediction_daily(json_data):
     Callback to get stock data from the hidden div, draw a graph from it and make
     predictions for the next Stock Prices (and graph those).
     """
-    # Return an empty graph untill a company is selected
-    # if(json_data is None):
-    #     return
-
     # Parse
     json_res = json.loads(json_data)
     series = json_res["Time Series (Daily)"]
@@ -183,20 +165,21 @@ def graph_stocks_prediction_daily(json_data):
 
 
 @app.callback(
-    Output('rl-stay', 'open'),
-    [Input('company-dropdown', 'value')])
-def predict_stay_stocks_daily(value):
+    Output('rl-decision', 'children'),
+    [Input('intermediate-value', 'children'),
+     Input('stock-graph-prediction', 'figure')])
+def predict_stocks_decision_daily(json_data, figure):
     """
-    Callback to get stock data from the API, perform RL to predict the optimal decision to make.
+    Callback to get stock data from the hidden div and perform RL to predict the optimal decision to make.
     """
-    # Return an empty graph untill a company is selected
-    if(value is None):
-        return
+    # Parse
+    json_res = json.loads(json_data)
+    series = json_res["Time Series (Daily)"]
+    days = [day for day in series]
+    closing = [float(series[day]["4. close"]) for day in days]
 
-    # For the company selected, make the API call and update the graph
-    days, closing = api.get_stocks_daily(value)
     # Get the last 100 days stock prices
-    model_input = closing[-100:]
+    model_input = closing[:100]
     model_input = [float(numeric_string) for numeric_string in model_input]
     model_input = np.reshape(model_input, (1, 1, 100))
 
@@ -209,83 +192,54 @@ def predict_stay_stocks_daily(value):
     loaded_model.load_weights("models/dqn_weights.h5")
     # Run model
     decisions = loaded_model.predict(model_input)
+    # Reset for future model predictions
+    K.clear_session()
 
-    print(decisions)
     # Render output
     if np.argmax(decisions) == 0:    # Stay
-        return True
-    else:
-        return False
+        return sd_material_ui.Paper(children=[sd_material_ui.FontIcon(className='material-icons',
+                                                                      iconName='trending_flat',
+                                                                      hoverColor="#1125ff"),
+                                              html.P('The Deep Q Network advices to ignore this stock')],
+                                    zDepth=2,
+                                    rounded=True,
+                                    style=dict(height=150,
+                                               width=150,
+                                               margin=20,
+                                               textAlign='center',
+                                               display='inline-block'
+                                               ),
+                                    ),
 
+    elif(np.argmax(decisions) == 1): # Buy
+        return sd_material_ui.Paper(children=[sd_material_ui.FontIcon(className='material-icons',
+                                                                      iconName='trending_up',
+                                                                      hoverColor="#56fc0a"),
+                                              html.P('The Deep Q Network advices to invest in this stock')],
+                                    zDepth=2,
+                                    rounded=True,
+                                    style=dict(height=150,
+                                               width=150,
+                                               margin=20,
+                                               textAlign='center',
+                                               display='inline-block'
+                                               ),
+                                    ),
 
-@app.callback(
-    Output('rl-buy', 'open'),
-    [Input('company-dropdown', 'value')])
-def predict_buy_stocks_daily(value):
-    """
-    Callback to get stock data from the API, perform RL to predict the optimal decision to make.
-    """
-    # Return an empty graph untill a company is selected
-    if(value is None):
-        return
-
-    # For the company selected, make the API call and update the graph
-    days, closing = api.get_stocks_daily(value)
-    # Get the last 100 days stock prices
-    model_input = closing[-100:]
-    model_input = [float(numeric_string) for numeric_string in model_input]
-    model_input = np.reshape(model_input, (1, 1, 100))
-    # Load model
-    json_file = open('models/dqn_model.json', 'r')
-    loaded_model_json = json_file.read()
-    json_file.close()
-    loaded_model = model_from_json(loaded_model_json)
-    # load weights into new model
-    loaded_model.load_weights("models/dqn_weights.h5")
-    # Run model
-    decisions = loaded_model.predict(model_input)
-    json_file.close()
-    # Render output
-    if np.argmax(decisions) == 1:    # Buy
-        return True
-    else:
-        return False
-
-
-@app.callback(
-    Output('rl-sell', 'open'),
-    [Input('company-dropdown', 'value')])
-def predict_sell_stocks_daily(value):
-    """
-    Callback to get stock data from the API, perform RL to predict the optimal decision to make.
-    """
-    # Return an empty graph untill a company is selected
-    if(value is None):
-        return
-
-    # For the company selected, make the API call and update the graph
-    days, closing = api.get_stocks_daily(value)
-    # Get the last 100 days stock prices
-    model_input = closing[-100:]
-    model_input = [float(numeric_string) for numeric_string in model_input]
-    model_input = np.reshape(model_input, (1, 1, 100))
-
-    # Load model
-    json_file = open('models/dqn_model.json', 'r')
-    loaded_model_json = json_file.read()
-    json_file.close()
-    loaded_model = model_from_json(loaded_model_json)
-    # load weights into new model
-    loaded_model.load_weights("models/dqn_weights.h5")
-    # Run model
-    decisions = loaded_model.predict(model_input)
-    json_file.close()
-
-    # Render output
-    if np.argmax(decisions) == 2:    # Sell
-        return True
-    else:
-        return False
+    else:                            # Sell
+        return sd_material_ui.Paper(children=[sd_material_ui.FontIcon(className='material-icons',
+                                                                      iconName='trending_down',
+                                                                      hoverColor="#fc000c"),
+                                              html.P('The Deep Q Network advices to sell this stock')],
+                                    zDepth=2,
+                                    rounded=True,
+                                    style=dict(height=150,
+                                               width=150,
+                                               margin=20,
+                                               textAlign='center',
+                                               display='inline-block'
+                                               ),
+                                    ),
 
 
 # @app.callback(
