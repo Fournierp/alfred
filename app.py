@@ -1,11 +1,23 @@
-import flask
-import dash
-import dash_core_components as dcc
-import dash_html_components as html
+import streamlit as st
+import time
+import numpy as np
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css',
-                        'https://fonts.googleapis.com/icon?family=Material+Icons']
+progress_bar = st.sidebar.progress(0)
+status_text = st.sidebar.empty()
+last_rows = np.random.randn(1, 1)
+chart = st.line_chart(last_rows)
 
-server = flask.Flask("Alfred")
-app = dash.Dash("Alfred", server=server, external_stylesheets=external_stylesheets)
-app.config.suppress_callback_exceptions = True
+for i in range(1, 101):
+    new_rows = last_rows[-1, :] + np.random.randn(5, 1).cumsum(axis=0)
+    status_text.text("%i%% Complete" % i)
+    chart.add_rows(new_rows)
+    progress_bar.progress(i)
+    last_rows = new_rows
+    time.sleep(0.05)
+
+progress_bar.empty()
+
+# Streamlit widgets automatically run the script from top to bottom. Since
+# this button is not connected to any other logic, it just causes a plain
+# rerun.
+st.button("Re-run")
