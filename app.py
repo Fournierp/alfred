@@ -1,23 +1,31 @@
 import streamlit as st
-import time
-import numpy as np
+import awesome_streamlit as ast
 
-progress_bar = st.sidebar.progress(0)
-status_text = st.sidebar.empty()
-last_rows = np.random.randn(1, 1)
-chart = st.line_chart(last_rows)
+import src.home
+import src.research
+import src.prediction
 
-for i in range(1, 101):
-    new_rows = last_rows[-1, :] + np.random.randn(5, 1).cumsum(axis=0)
-    status_text.text("%i%% Complete" % i)
-    chart.add_rows(new_rows)
-    progress_bar.progress(i)
-    last_rows = new_rows
-    time.sleep(0.05)
 
-progress_bar.empty()
+ast.core.services.other.set_logging_format()
 
-# Streamlit widgets automatically run the script from top to bottom. Since
-# this button is not connected to any other logic, it just causes a plain
-# rerun.
-st.button("Re-run")
+# List of pages available for display
+PAGES = {
+    "Home": src.home,
+    "Research": src.research,
+    "Prediction": src.prediction,
+}
+
+
+def main():
+    """Core of the app - switches between 'tabs' thanks to the sidebar"""
+    st.sidebar.title("Navigation")
+    selection = st.sidebar.radio("Visit", list(PAGES.keys()))
+
+    page = PAGES[selection]
+
+    with st.spinner(f"Loading {selection} ..."):
+        ast.shared.components.write_page(page)
+
+
+if __name__ == "__main__":
+    main()
