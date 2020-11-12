@@ -1,7 +1,7 @@
 streamlit
 awesome_streamlit
 pandas
+numpy
 yfinance
 geopy
-requests
 requests

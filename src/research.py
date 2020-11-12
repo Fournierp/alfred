@@ -28,10 +28,7 @@ def news_table(company):
 
     # Skip if no headline was found
     number_of_results = res["totalResults"]
-    if int(number_of_results) == 0:
-        pass
-
-    else:
+    if int(number_of_results) != 0:
         # Take the 10 most relevant articles published in the range and display
         # the source, the company name, the title, the date and link
         for counter, result in enumerate(res["articles"]):
@@ -53,7 +50,7 @@ def write():
             """ Research tabs """,
             unsafe_allow_html=True,
         )
-
+        # Get company names and info
         companies = load_data()
 
         # Show table of companies
@@ -147,4 +144,7 @@ def write():
                     news = news_table(companies.loc[assets[0]].Security)
 
             st.line_chart(stocks)
-            st.table(news)
+            if news.empty:
+                st.write('''No news articles about the companies.''')
+            else:
+                st.table(news)
