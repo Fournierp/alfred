@@ -10,7 +10,7 @@ ast.core.services.other.set_logging_format()
 
 # List of pages available for display
 PAGES = {
-    "Home": src.home,
+    # "Home": src.home,
     "Research": src.research,
     "Prediction": src.prediction,
 }

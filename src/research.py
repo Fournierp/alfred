@@ -1,11 +1,8 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
-from geopy.geocoders import Nominatim
-import requests
-import urllib.parse
-import requests
-import json
+import numpy as np
+import api
 
 
 @st.cache
@@ -20,15 +17,40 @@ def load_quotes(asset):
     return yf.download(asset)
 
 
+def news_table(company):
+    """
+    Get the news headlines from the API and fill a table.
+    """
+    df = pd.DataFrame(columns=["Title", "About", "Source", "Links", "Published on"])
+
+    # Make an API call
+    res = api.get_articles(company)
+
+    # Skip if no headline was found
+    number_of_results = res["totalResults"]
+    if int(number_of_results) == 0:
+        pass
+
+    else:
+        # Take the 10 most relevant articles published in the range and display
+        # the source, the company name, the title, the date and link
+        for counter, result in enumerate(res["articles"]):
+            if counter > 9:
+                break
+            df = df.append(pd.DataFrame([[result["title"], company, result["source"]["name"],
+                                          result["url"], result["publishedAt"][:10]]],
+                                        columns=["Title", "About", "Source", "Links", "Published on"]),
+                           ignore_index=True)
+
+    return df
+
+
 def write():
     st.title('Alfred - Research')
-    geolocator = Nominatim(user_agent="paul.fournier")
 
     with st.spinner("Loading About ..."):
         st.markdown(
-            """
-            Research tabs
-            """,
+            """ Research tabs """,
             unsafe_allow_html=True,
         )
 
@@ -53,7 +75,7 @@ def write():
                                         'Founded']])
 
         def label(symbol):
-            ''' Fancy display of company names'''
+            ''' Fancy display of company names '''
             a = companies.loc[symbol]
             return symbol + ' - ' + a.Security
 
@@ -74,20 +96,55 @@ def write():
 
         # When at least one company is selected
         if len(assets):
+
+            # Slider for Moving Average window
+            maw = st.slider("Select the Moving Average window \
+            (Select 1 to execute no curve smoothing)", 1, 200, 50, 1)
+
             if len(assets) > 1:
-                df = pd.DataFrame()
+                stocks = pd.DataFrame([])
+                news = pd.DataFrame([])
                 for asset in assets:
-                    # Display multiple companies on a single graph
+                    # Stocks Graph
+                    # Get data for that company
                     data = load_quotes(asset)
                     data.index.name = None
                     data = data.rename(columns={'Adj Close': asset})
-                    df = pd.concat([df, data[:][asset]], axis=1)
+                    # Moving average
+                    if maw != 1:
+                        tmp = np.round(data[:][asset].rolling(maw).mean(), 2)
+                    else:
+                        tmp = data[:][asset]
+                    stocks = pd.concat([stocks, tmp], axis=1)
+
+                    # News articles
+                    news = news.append(news_table(companies.loc[asset].Security), ignore_index=True)
 
             else:
-                # Display company on a graph
+                # Stocks Graph
+                # Get data for that company
                 data = load_quotes(assets)
                 data.index.name = None
                 data = data.rename(columns={'Adj Close': assets[0]})
-                df = data[:][assets[0]]
+                stocks = data[:][assets[0]]
+                # Moving average
+                if maw != 1:
+                    ma = np.round(stocks.rolling(maw).mean(), 2)
+                    # Checkbox for Bollinger Bands
+                    if st.checkbox('View Bollinger Bands', value=True):
+                        # Compute Bollinger Bands
+                        std = np.round(stocks.rolling(maw).std(), 2)
+                        ub = ma + std * 2
+                        lb = ma - std * 2
 
-            st.line_chart(df)
+                        stocks = pd.concat([stocks, ub, lb], axis=1, ignore_index=True)
+                        stocks = stocks.rename(
+                            columns={0: assets[0], 1: "Upper Bollinger Band", 2: "Lower Bollinger Band"})
+                    else:
+                        stocks = ma
+
+                    # News articles
+                    news = news_table(companies.loc[assets[0]].Security)
+
+            st.line_chart(stocks)
+            st.table(news)
