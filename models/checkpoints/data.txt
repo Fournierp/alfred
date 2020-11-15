@@ -1,0 +1,1 @@
+{"total_max": 125.4000015258789, "total_min": 11.850000381469727, "output_len": 1, "input_len": 30}
