@@ -6,7 +6,7 @@ The implementation of efficient Sentiment Analysis models used for Stock Predict
 
 ## Introduction
 
-Alfred is a web app designed with Plotly's Dashboard tool. This appealing web-interface for will be your personal Virtual Assistant for your Stock Market Investments. From the visualization of recent stock price variations for any of the current Top 100 NASDAQ companies, to recent articles about these companies, you can explore many sources of information to make accurate decisions for your next trades.
+Alfred is a web app designed with Streamlit. This appealing web-interface for will be your personal Virtual Assistant for your Stock Market Investments. From the visualization of recent stock price variations for any of the current Top 100 NASDAQ companies, to recent articles about these companies, you can explore many sources of information to make accurate decisions for your next trades.
 
 ## Installation
 
@@ -29,6 +29,9 @@ python index.py
 
 ## Release history
 
+* 3.0
+   * Streamlit POC - web-interface, visualizations of stock prices and articles about a company.
+
 * 2.0
     * Dash Proof of Concept: web-interface using Dash, visualizations of stock prices and articles about a company.
 
@@ -38,7 +41,7 @@ python index.py
 
 ## Built With
 
-* [Dash](https://github.com/plotly/dash/) Analytical Web Apps for Python
+* [Streamlit](https://www.streamlit.io/) The fastest way to build and share data apps
 * [alphavantage](https://www.alphavantage.co/) Realtime and historical stock data
 * [newsapi](https://newsapi.org/) Search worldwide news with code
 
