@@ -12,23 +12,15 @@ from tensorflow.keras.models import model_from_json
 @st.cache
 def load_model():
     # Load price window model
-    json_file = open('models/checkpoints/lstm_next_price_model.json', 'r')
-    loaded_model_json = json_file.read()
+    json_file = open('models/checkpoints/lstm_long_term_model.json', 'r')
+    lstm_model_json = json_file.read()
     json_file.close()
-    loaded_model = model_from_json(loaded_model_json)
+    lstm_model = model_from_json(lstm_model_json)
 
     # Load weights into new model
-    loaded_model.load_weights("models/checkpoints/lstm_next_price.h5")
+    lstm_model.load_weights("models/checkpoints/lstm_long_term.h5")
 
-    # Load price window model
-    json_file = open('models/checkpoints/lstm_next_price_win_model.json', 'r')
-    loaded_model_json = json_file.read()
-    json_file.close()
-    loaded_model2 = model_from_json(loaded_model_json)
-
-    # Load weights into new model
-    loaded_model2.load_weights("models/checkpoints/lstm_next_prices_win.h5.h5")
-    return loaded_model, loaded_model2
+    return lstm_model
 
 
 @st.cache
@@ -44,7 +36,7 @@ def load_quotes(asset):
 
 
 def get_model_data():
-    with open('models/checkpoints/data.txt') as f:
+    with open('models/checkpoints/data_long_term.txt') as f:
         data = json.load(f)
         total_max = data["total_max"]
         total_min = data["total_min"]
@@ -67,20 +59,6 @@ def predict_next_stock(model, stocks):
     return prediction * (total_max - total_min) + total_min
 
 
-def predict_next_stock_win(model, stocks):
-    # Get model information
-    total_max, total_min, input_len, output_len = get_model_data()
-    # Get last window of data
-    historical_prices = np.array(stocks[-input_len:].copy())
-    historical_prices = np.reshape(historical_prices, (1, historical_prices.shape[0], 1))
-    # Normalise the data
-    historical_prices = (historical_prices - total_min) / (total_max - total_min)
-    # Run model
-    prediction = model.predict(historical_prices)
-    # Inverse transform
-    return prediction * (total_max - total_min) + total_min
-
-
 def write():
     st.title('Alfred - Prediction')
     with st.spinner("Loading About ..."):
@@ -90,8 +68,8 @@ def write():
         )
         # Get company names and info
         companies = load_data()
-        # Get model
-        model, model2 = load_model()
+        # Get models
+        lstm_model = load_model()
 
         def label(symbol):
             ''' Fancy display of company names '''
@@ -111,11 +89,19 @@ def write():
         data.index.name = None
         data = data.rename(columns={'Adj Close': asset})
         stocks = data[:][asset]
-        st.line_chart(stocks)
 
         # Model prediction
-        predicted_val = predict_next_stock_win(model, stocks)
-        predicted_val2 = predict_next_stock_win(model2, stocks)
-        st.write(predicted_val)
-        st.write(predicted_val2)
+        predicted_val = predict_next_stock(lstm_model, stocks)
 
+        # visualization
+        slope = (predicted_val[0][0] - stocks.values[-1]) / 5
+        projection_line = [stocks.values[-1]+i*slope for i in range(1, 6)]
+        project_index = [stocks.index[-1]+pd.Timedelta(i, unit='D') for i in range(1, 6)]
+        projection = pd.Series(data=projection_line, index=project_index)
+        data = pd.concat([stocks, projection], axis=1, ignore_index=True)
+        data = data.rename(
+            columns={0: asset[0], 1: "Predicted value", 2: "Lower Bollinger Band"})
+
+        st.line_chart(data)
+
+        st.write(f'Long Short Term Memory model predicts the stock to be valued at {predicted_val[0][0]:.2f} in 5 days.')
