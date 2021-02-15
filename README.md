@@ -1,5 +1,7 @@
 # Alfred
 
+![Demo](demo_video.gif)
+
 ## :trophy: Code.Jam(2018): Patter Recognition :trophy:
 
 The implementation of efficient Sentiment Analysis models used for Stock Prediction earned me the Second Position in the Natural Language Processing category at a Machine Learning Hackathon at McGill University.
