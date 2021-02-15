@@ -6,7 +6,7 @@ The implementation of efficient Sentiment Analysis models used for Stock Predict
 
 ## Introduction
 
-Alfred is a web app designed with Streamlit. This appealing web-interface for will be your personal Virtual Assistant for your Stock Market Investments. From the visualization of recent stock price variations for any of the current Top 100 NASDAQ companies, to recent articles about these companies, you can explore many sources of information to make accurate decisions for your next trades.
+Alfred is a web app designed with Streamlit. This appealing web-interface for will be your personal virtual assistant for your Stock Market Investments. From the visualization of recent stock price variations for any of the current Top 100 NASDAQ companies, to recent articles about these companies, you can explore sources of information to make accurate decisions for your next trades.
 
 ## Installation
 
@@ -22,9 +22,13 @@ Then install the required libraries listed in the requirements.txt
 pip install -r requirements.txt
 ```
 
+## Requirements
+
+Create an account on [newsapi](https://newsapi.org/) to get an API key. Then add it to the file *api_key.json*.
+
 ## Usage Example
 ```
-python index.py
+streamlit run app.py
 ```
 
 ## Release history
@@ -42,8 +46,11 @@ python index.py
 ## Built With
 
 * [Streamlit](https://www.streamlit.io/) The fastest way to build and share data apps
-* [alphavantage](https://www.alphavantage.co/) Realtime and historical stock data
 * [newsapi](https://newsapi.org/) Search worldwide news with code
+
+## Contribute
+
+To build on this tool, please fork it and make pull requests. Or simply send me some suggestions !
 
 
 ## Authors
