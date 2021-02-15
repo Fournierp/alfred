@@ -5,3 +5,4 @@ numpy
 yfinance
 geopy
 requests
+tensorflow
