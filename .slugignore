@@ -1,0 +1,6 @@
+models/*.ipynb
+models/plots
+models/best_rl_model/
+models/lstm_long_term.h5
+models/lstm_percent.h5
+models/lstm_vanilla.h5
