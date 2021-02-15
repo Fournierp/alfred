@@ -3,6 +3,5 @@ awesome_streamlit
 pandas
 numpy
 yfinance
-geopy
 requests
 tensorflow
