@@ -1,11 +1,31 @@
-import flask
-import dash
-import dash_core_components as dcc
-import dash_html_components as html
+import streamlit as st
+import awesome_streamlit as ast
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css',
-                        'https://fonts.googleapis.com/icon?family=Material+Icons']
+import src.home
+import src.research
+import src.prediction
 
-server = flask.Flask("Alfred")
-app = dash.Dash("Alfred", server=server, external_stylesheets=external_stylesheets)
-app.config.suppress_callback_exceptions = True
+
+ast.core.services.other.set_logging_format()
+
+# List of pages available for display
+PAGES = {
+    # "Home": src.home,
+    "Research": src.research,
+    "Prediction": src.prediction,
+}
+
+
+def main():
+    """Core of the app - switches between 'tabs' thanks to the sidebar"""
+    st.sidebar.title("Navigation")
+    selection = st.sidebar.radio("Visit", list(PAGES.keys()))
+
+    page = PAGES[selection]
+
+    with st.spinner(f"Loading {selection} ..."):
+        ast.shared.components.write_page(page)
+
+
+if __name__ == "__main__":
+    main()
