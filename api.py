@@ -10,7 +10,6 @@ import requests
 def get_api_key(name: str) -> str:
     with Path('api_key.json').open() as f:
         data = json.load(f)
-        data = json.load(f)
         return data[name]
 
 

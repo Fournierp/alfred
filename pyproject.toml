@@ -29,7 +29,7 @@ dev = [
 [tool.ruff]
 fix = true
 line-length = 120
-lint.ignore = ["COM812", "D100", "D101", "D102", "D103", "D107", "D400", "D415", "NPY002"]
+lint.ignore = ["COM812", "D100", "D101", "D102", "D103", "D107", "D400", "D415", "NPY002", "T201"]
 lint.select = ["ALL"]
 
 [tool.ruff.format]
