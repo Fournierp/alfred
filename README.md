@@ -12,16 +12,11 @@ Alfred is a web app designed with Streamlit. This appealing web-interface for wi
 
 ## Installation
 
-Firstly, ensure that you have pip install. In which case follow these steps using the command line:
+Firstly, ensure that you have [uv](https://docs.astral.sh/uv/getting-started/installation/) installed.
 
+Install the required packages.
 ```
-curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-python get-pip.py
-```
-
-Then install the required libraries listed in the requirements.txt
-```
-pip install -r requirements.txt
+uv sync
 ```
 
 ## Requirements
@@ -30,10 +25,13 @@ Create an account on [newsapi](https://newsapi.org/) to get an API key. Then add
 
 ## Usage Example
 ```
-streamlit run app.py
+uv run streamlit run app.py
 ```
 
 ## Release history
+
+* 4.0
+   * Use uv
 
 * 3.0
    * Streamlit POC - web-interface, visualizations of stock prices and articles about a company.
