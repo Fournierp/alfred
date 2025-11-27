@@ -1,9 +1,9 @@
 import streamlit as st
 
 
-def write():
+def write() -> None:
     st.title('Alfred - Home')
-    with st.spinner("Loading About ..."):
+    with st.spinner('Loading About ...'):
         st.markdown(
             """
             This Streamlit app is a Financial data dashbord that could be used

@@ -1,32 +1,28 @@
 import json
-import requests
 import re
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from urllib import request
 
+import requests
 
-def get_api_key(name):
-    with open('api_key.json') as f:
+
+def get_api_key(name: str) -> str:
+    with Path('api_key.json').open() as f:
         data = json.load(f)
-        api_key = data[name]
-        return api_key
+        data = json.load(f)
+        return data[name]
 
 
-def get_news_sources():
-    """
-    Function to get all the support News Sources in English.
-    """
-    # Get the api key
-    api_key = get_api_key("newsapi")
+def get_news_sources() -> list[dict[str, str]]:
+    api_key = get_api_key('newsapi')
 
-    # Make the API call
-    response = requests.get('https://newsapi.org/v2/sources?language=en&apiKey=' + api_key)
-    json_res = response.json()["sources"]
-    sources = [[source["name"]] for source in json_res]
-    ids = [source["id"] for source in json_res]
+    response = requests.get('https://newsapi.org/v2/sources?language=en&apiKey=' + api_key, timeout=10)
+    json_res = response.json()['sources']
+    sources = [[source['name']] for source in json_res]
+    ids = [source['id'] for source in json_res]
 
     options = []
-    # Get the company name and symbol
     for i in range(len(sources)):
         new_source = {'label': sources[i][0], 'value': ids[i]}
         options.append(new_source)
@@ -34,55 +30,45 @@ def get_news_sources():
     return options
 
 
-def format_companies(company):
-    """
-    Format the selected company so that the API can find relevant articles.
-    """
-    # Remove junk at the end of the names
-    if company[-6:] == ", Inc.":
-        return re.sub(r' ', "-", company[:-6])
+def format_companies(company: str) -> str:
+    if company[-6:] == ', Inc.':
+        return re.sub(r' ', '-', company[:-6])
 
-    if company[-5:] == ", Inc":
-        return re.sub(r' ', "-", company[:-5])
+    if company[-5:] == ', Inc':
+        return re.sub(r' ', '-', company[:-5])
 
-    if company[-5:] == " Inc.":
-        return re.sub(r' ', "-", company[:-5])
+    if company[-5:] == ' Inc.':
+        return re.sub(r' ', '-', company[:-5])
 
-    return re.sub(r' ', "-", company)
+    return re.sub(r' ', '-', company)
 
 
-def format_sources(sources):
-    """
-    Make a comma separated string of news source labels.
-    """
-    formatted_sources = ""
+def format_sources(sources: list[dict[str, str]]) -> str:
+    formatted_sources = ''
     for source in sources:
-        formatted_sources += source["value"] + ','
+        formatted_sources += source['value'] + ','
 
     return formatted_sources
 
 
-def get_articles(company):
-    """
-    Function that makes the api calls given company names.
-    """
-    # Get the news sources
+def get_articles(company: str) -> dict:
     sources = get_news_sources()
-    # Format the news sources
     formatted_sources = format_sources(sources)
-    # Format the companies
     formatted_company = format_companies(company)
-    # Get the api key
-    api_key = get_api_key("newsapi")
-    # Create a timespan : 14 days
-    end = datetime.now().strftime("%Y-%m-%d")
-    start = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
-    # Get the articles
-    contents = request.urlopen("http://newsapi.org/v2/everything?sources="
-                               + formatted_sources + "&q=" + formatted_company + "&sortBy=relevancy&from="
-                               + start + "&to=" + end + "&apikey=" + api_key).read()
+    api_key = get_api_key('newsapi')
+    end = datetime.now(tz=UTC).strftime('%Y-%m-%d')
+    start = (datetime.now(tz=UTC) - timedelta(days=14)).strftime('%Y-%m-%d')
+    contents = request.urlopen(
+        'http://newsapi.org/v2/everything?sources='
+        + formatted_sources
+        + '&q='
+        + formatted_company
+        + '&sortBy=relevancy&from='
+        + start
+        + '&to='
+        + end
+        + '&apikey='
+        + api_key
+    ).read()
 
-    # Parse them
-    json_res = json.loads(contents)
-
-    return json_res
+    return json.loads(contents)
