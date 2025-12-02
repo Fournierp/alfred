@@ -6,10 +6,10 @@ import pandas as pd
 import streamlit as st
 from tensorflow.keras.models import Model, model_from_json
 
-from src.research import load_data, load_quotes
+from src.utils import load_data, load_quotes, rename_company
 
 
-@st.cache_data
+@st.cache_resource
 def load_model():  # noqa: ANN201
     with Path('models/checkpoints/lstm_model.json').open('r') as json_file:
         lstm_model_json = json_file.read()
@@ -33,57 +33,61 @@ def predict_next_stock(model: Model, stocks: pd.Series) -> float:
     total_max, total_min, input_len, _ = get_model_data()
 
     historical_prices = np.array(stocks[-input_len:].copy())
-    print(historical_prices)
-    historical_prices = np.reshape(historical_prices, (historical_prices.shape[0], 1))
-    norm_historical_prices = (historical_prices / historical_prices[0, 0]) - 1
 
+    # Normalization
+    historical_prices = np.reshape(historical_prices, (historical_prices.shape[0], 1))
+    first_price = historical_prices[0, 0]
+    norm_historical_prices = (historical_prices / first_price) - 1
     norm_historical_prices = (norm_historical_prices - total_min) / (total_max - total_min)
 
-    prediction = model.predict(norm_historical_prices[np.newaxis, ...])
+    # Prediction
+    prediction = model.predict(norm_historical_prices[np.newaxis, ...], verbose=0)
 
-    return prediction * (total_max - total_min) + total_min
+    # De-normalization
+    prediction = prediction * (total_max - total_min) + total_min
+    return (prediction + 1) * first_price
 
 
 def write() -> None:
     st.title('Alfred - Prediction')
 
-    with st.spinner('Loading About ...'):
-        st.markdown(""" Prediction tabs """, unsafe_allow_html=True)
+    with st.spinner('Loading ...'):
         companies = load_data()
         lstm_model = load_model()
 
-        def label(symbol: str) -> str:
-            a = companies.loc[symbol]
-            return symbol + ' - ' + a.Security
-
-        st.subheader('Select assets')
-        asset = st.selectbox('Click below to select a new asset', companies.index.sort_values(), format_func=label)
-
-        print(asset)
-
-        data = load_quotes(asset)
-        data.index.name = None
-        print(data)
-        stocks = data[('Close', asset)]
-
-        predicted_val = predict_next_stock(lstm_model, stocks)
-
-        slope = (predicted_val[0][0] - stocks.to_numpy()[-1]) / 5
-        projection_line = [stocks.to_numpy()[-1] + i * slope for i in range(1, 6)]
-        project_index = [stocks.index[-1] + pd.Timedelta(i, unit='D') for i in range(1, 6)]
-        projection = pd.Series(data=projection_line, index=project_index)
-        data = pd.concat([stocks, projection], axis=1, ignore_index=True)
-        data = data.rename(columns={0: asset[0], 1: 'Predicted value'})
-
-        st.line_chart(data)
-
-        predicted_price = predicted_val[0][0]
-        current_price = stocks.to_numpy()[-1]
-        predicted_price_change = ((predicted_price - current_price) / current_price) * 100
-
-        emoji = '🚀📈' if predicted_price_change > 0 else '💔📉'
-
-        st.write(
-            f"""{emoji} LSTM model predicts the stock to be valued at {predicted_price:.2f} in 5 days
-             ({'+' if predicted_price_change > 0 else ''}{predicted_price_change:.2f}%)."""
+        asset = st.selectbox(
+            'Click below to select a new asset',
+            companies.index.sort_values(),
+            format_func=lambda x: rename_company(companies, x),
         )
+
+        predict_button = st.button('🔮 Generate Prediction', type='primary')
+
+        if predict_button:
+            with st.spinner('Fetching data and generating prediction...'):
+                stocks = load_quotes(asset)
+                predicted_val = predict_next_stock(lstm_model, stocks)
+                predicted_price = predicted_val[0][0]
+                current_price = stocks.to_numpy()[-1]
+
+                projection_index = stocks.index[-1] + pd.Timedelta(1, unit='D')
+                projection = pd.Series(
+                    data=[current_price, predicted_price], index=[stocks.index[-1], projection_index]
+                )
+                last_month_stocks = stocks.loc[stocks.index >= stocks.index[-1] - pd.Timedelta(days=30)]
+                data = pd.concat([last_month_stocks, projection], axis=1, ignore_index=True)
+                data = data.rename(columns={0: asset, 1: 'Predicted value'})
+
+                predicted_price_change = ((predicted_price - current_price) / current_price) * 100
+
+            if data is not None:
+                st.line_chart(data)
+
+                emoji = '🚀📈' if predicted_price_change > 0 else '💔📉'
+
+                st.write(
+                    f"""{emoji} LSTM model predicts the stock to be valued at {predicted_price:.2f} at the next closing
+                     time. ({'+' if predicted_price_change > 0 else ''}{predicted_price_change:.2f}%)."""
+                )
+        elif not predict_button:
+            st.info('👆 Click "Generate Prediction" to fetch data and predict future stock price')

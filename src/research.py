@@ -1,28 +1,9 @@
 import numpy as np
 import pandas as pd
 import streamlit as st
-import yfinance as yf
 
 import api
-from src.utils import rename_company
-
-
-@st.cache_data
-def load_data() -> pd.DataFrame:
-    url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    companies = pd.read_html(url, storage_options=headers)[1]
-    return companies.set_index('Symbol')
-
-
-@st.cache_data
-def load_quotes(asset: str) -> pd.DataFrame:
-    data = yf.download(asset, period='max')
-    data.index.name = None
-    data = data[('Close', asset)]
-    if isinstance(data, pd.Series):
-        return data.rename(asset)
-    return data.rename({('Close', asset): asset})
+from src.utils import load_data, load_quotes, rename_company
 
 
 def news_table(company: str) -> pd.DataFrame:
@@ -159,7 +140,6 @@ def write() -> None:
                     else:
                         stocks, news = process_single_asset(assets[0], companies)
 
-            if st.session_state.stocks_data is not None:
                 display_data(stocks, news)
             elif not load_data_button:
                 st.info('👆 Click "Load Stock Data" to fetch and display stock information')
