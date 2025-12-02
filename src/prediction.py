@@ -1,107 +1,110 @@
-import streamlit as st
 import json
+from pathlib import Path
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+import streamlit as st
+from tensorflow.keras.models import Model, model_from_json
 
-import yfinance as yf
-
-from tensorflow.keras.models import model_from_json
+from src.utils import load_data, load_quotes, rename_company
 
 
-@st.cache
-def load_model():
-    # Load price window model
-    json_file = open('models/checkpoints/lstm_long_term_model.json', 'r')
-    lstm_model_json = json_file.read()
-    json_file.close()
+@st.cache_resource
+def load_model():  # noqa: ANN201
+    with Path('models/checkpoints/lstm_model.json').open('r') as json_file:
+        lstm_model_json = json_file.read()
     lstm_model = model_from_json(lstm_model_json)
-
-    # Load weights into new model
-    lstm_model.load_weights("models/checkpoints/lstm_long_term.h5")
+    lstm_model.load_weights('models/checkpoints/lstm.weights.h5')
 
     return lstm_model
 
 
-@st.cache
-def load_data():
-    companies = pd.read_html('https://en.wikipedia.org/wiki/List_of_S'
-                             '%26P_500_companies')[0]
-    return companies.drop('SEC filings', axis=1).set_index('Symbol')
-
-
-@st.cache(suppress_st_warning=True)
-def load_quotes(asset):
-    return yf.download(asset)
-
-
-def get_model_data():
-    with open('models/checkpoints/data_long_term.txt') as f:
+def get_model_data() -> tuple[float, float, int, int]:
+    with Path('models/checkpoints/lstm_data.txt').open() as f:
         data = json.load(f)
-        total_max = data["total_max"]
-        total_min = data["total_min"]
-        input_len = data["input_len"]
-        output_len = data["output_len"]
+        total_max = data['total_max']
+        total_min = data['total_min']
+        input_len = data['input_len']
+        output_len = data['output_len']
         return total_max, total_min, input_len, output_len
 
 
-def predict_next_stock(model, stocks):
-    # Get model information
-    total_max, total_min, input_len, output_len = get_model_data()
-    # Get last window of data
+def predict_next_stock(model: Model, stocks: pd.Series) -> float:
+    total_max, total_min, input_len, _ = get_model_data()
+
     historical_prices = np.array(stocks[-input_len:].copy())
-    historical_prices = np.reshape(historical_prices, (1, historical_prices.shape[0], 1))
-    # Normalise the data
-    historical_prices = (historical_prices - total_min) / (total_max - total_min)
-    # Run model
-    prediction = model.predict(historical_prices)
-    # Inverse transform
-    return prediction * (total_max - total_min) + total_min
+
+    # Normalization
+    historical_prices = np.reshape(historical_prices, (historical_prices.shape[0], 1))
+    first_price = historical_prices[0, 0]
+    norm_historical_prices = (historical_prices / first_price) - 1
+    norm_historical_prices = (norm_historical_prices - total_min) / (total_max - total_min)
+
+    # Prediction
+    prediction = model.predict(norm_historical_prices[np.newaxis, ...], verbose=0)
+
+    # De-normalization
+    prediction = prediction * (total_max - total_min) + total_min
+    return (prediction + 1) * first_price
 
 
-def write():
+def write() -> None:
     st.title('Alfred - Prediction')
-    with st.spinner("Loading About ..."):
-        st.markdown(
-            """ Prediction tabs """,
-            unsafe_allow_html=True,
-        )
-        # Get company names and info
+
+    if 'stock_cache' not in st.session_state:
+        st.session_state.stock_cache = {}
+
+    with st.sidebar:
+        st.subheader('Cache Management')
+        if st.session_state.stock_cache:
+            st.write(f'Cached stocks: {len(st.session_state.stock_cache)}')
+            assets_list = list(st.session_state.stock_cache.keys())[:5]
+            suffix = '...' if len(st.session_state.stock_cache) > 5 else ''  # noqa: PLR2004
+            st.write(f'Assets: {", ".join(assets_list)}{suffix}')
+        if st.button('🗑️ Clear Cache'):
+            st.session_state.stock_cache = {}
+            st.rerun()
+
+    with st.spinner('Loading ...'):
         companies = load_data()
-        # Get models
         lstm_model = load_model()
 
-        def label(symbol):
-            ''' Fancy display of company names '''
-            a = companies.loc[symbol]
-            return symbol + ' - ' + a.Security
+        asset = st.selectbox(
+            'Click below to select a new asset',
+            companies.index.sort_values(),
+            format_func=lambda x: rename_company(companies, x),
+        )
 
-        # Select companies to display
-        st.subheader('Select assets')
-        asset = st.selectbox('Click below to select a new asset',
-                             companies.index.sort_values(),
-                             format_func=label)
+        predict_button = st.button('🔮 Generate Prediction', type='primary')
 
-        # Get data for that company
-        st.write(asset)
+        if predict_button:
+            with st.spinner('Fetching data and generating prediction...'):
+                if asset not in st.session_state.stock_cache:
+                    st.session_state.stock_cache[asset] = load_quotes(asset)
+                stocks = st.session_state.stock_cache[asset]
 
-        data = load_quotes(asset)
-        data.index.name = None
-        data = data.rename(columns={'Adj Close': asset})
-        stocks = data[:][asset]
+                predicted_val = predict_next_stock(lstm_model, stocks)
+                predicted_price = predicted_val[0][0]
+                current_price = stocks.to_numpy()[-1]
 
-        # Model prediction
-        predicted_val = predict_next_stock(lstm_model, stocks)
+                projection_index = stocks.index[-1] + pd.Timedelta(1, unit='D')
+                projection = pd.Series(
+                    data=[current_price, predicted_price], index=[stocks.index[-1], projection_index]
+                )
+                last_month_stocks = stocks.loc[stocks.index >= stocks.index[-1] - pd.Timedelta(days=30)]
+                data = pd.concat([last_month_stocks, projection], axis=1, ignore_index=True)
+                data = data.rename(columns={0: asset, 1: 'Predicted value'})
 
-        # visualization
-        slope = (predicted_val[0][0] - stocks.values[-1]) / 5
-        projection_line = [stocks.values[-1]+i*slope for i in range(1, 6)]
-        project_index = [stocks.index[-1]+pd.Timedelta(i, unit='D') for i in range(1, 6)]
-        projection = pd.Series(data=projection_line, index=project_index)
-        data = pd.concat([stocks, projection], axis=1, ignore_index=True)
-        data = data.rename(
-            columns={0: asset[0], 1: "Predicted value", 2: "Lower Bollinger Band"})
+                predicted_price_change = ((predicted_price - current_price) / current_price) * 100
 
-        st.line_chart(data)
+            if data is not None:
+                st.line_chart(data)
 
-        st.write(f'Long Short Term Memory model predicts the stock to be valued at {predicted_val[0][0]:.2f} in 5 days.')
+                emoji = '🚀📈' if predicted_price_change > 0 else '💔📉'
+
+                st.write(
+                    f"""{emoji} LSTM model predicts the stock to be valued at {predicted_price:.2f} at the next closing
+                     time. ({'+' if predicted_price_change > 0 else ''}{predicted_price_change:.2f}%)."""
+                )
+        elif not predict_button:
+            st.info('👆 Click "Generate Prediction" to fetch data and predict future stock price')
