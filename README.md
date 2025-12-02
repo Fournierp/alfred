@@ -8,7 +8,11 @@ The implementation of efficient Sentiment Analysis models used for Stock Predict
 
 ## Introduction
 
-Alfred is a web app designed with Streamlit. This appealing web-interface for will be your personal virtual assistant for your Stock Market Investments. From the visualization of recent stock price variations for any of the current Top 100 NASDAQ companies, to recent articles about these companies, you can explore sources of information to make accurate decisions for your next trades.
+Alfred is a web app designed with Streamlit. This web-interface serves as a personal virtual assistant to help you explore information related to Stock Market Investments. From the visualization of recent stock price variations for any of the current S&P 500 companies, to recent articles about these companies, you can explore various sources of information. 
+
+**Note: This tool is for informational and educational purposes only. Do not rely on this model to make investment decisions. Always consult with a qualified financial advisor before making any investments.**
+
+**Warning: yfinance may be subject to rate limits. Excessive requests in a short period may result in temporary blocks or degraded performance.**
 
 ## Installation
 

@@ -4,6 +4,7 @@ import streamlit as st
 import yfinance as yf
 
 import api
+from src.utils import rename_company
 
 
 @st.cache_data
@@ -14,9 +15,14 @@ def load_data() -> pd.DataFrame:
     return companies.set_index('Symbol')
 
 
-@st.cache_data()
+@st.cache_data
 def load_quotes(asset: str) -> pd.DataFrame:
-    return yf.download(asset, period='max')
+    data = yf.download(asset, period='max')
+    data.index.name = None
+    data = data[('Close', asset)]
+    if isinstance(data, pd.Series):
+        return data.rename(asset)
+    return data.rename({('Close', asset): asset})
 
 
 def news_table(company: str) -> pd.DataFrame:
@@ -63,59 +69,45 @@ def display_companies_list(companies: pd.DataFrame) -> None:
 
 
 def get_asset_selection(companies: pd.DataFrame) -> list[str]:
-    def label(symbol: str) -> str:
-        """Fancy display of company names"""
-        a = companies.loc[symbol]
-        return symbol + ' - ' + a.Security
-
-    st.subheader('Select assets')
-    return st.multiselect('Click below to select a new asset', companies.index.sort_values(), format_func=label)
+    st.subheader('Select asset(s)')
+    return st.multiselect(
+        'Click below to select a new asset',
+        companies.index.sort_values(),
+        format_func=lambda x: rename_company(companies, x),
+    )
 
 
 def display_company_info(companies: pd.DataFrame, assets: list[str]) -> None:
     if st.checkbox('View company info', value=True):
         st.table(
             companies.loc[assets][
-                [
-                    'Security',
-                    'GICS Sector',
-                    'GICS Sub-Industry',
-                    'Headquarters Location',
-                    'Date added',
-                    'Founded',
-                ]
+                ['Security', 'GICS Sector', 'GICS Sub-Industry', 'Headquarters Location', 'Date added', 'Founded']
             ]
         )
 
 
-def process_multiple_assets(
-    assets: list[str], companies: pd.DataFrame, moving_average_window: int
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+def process_multiple_assets(assets: list[str], companies: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     stocks = pd.DataFrame([])
     news = pd.DataFrame([])
 
     for asset in assets:
-        data = load_quotes(asset)
-        data.index.name = None
-        data = data[('Close', asset)]
-
-        if moving_average_window != 1:
-            tmp = pd.Series(np.round(data.rolling(moving_average_window).mean(), 2), name=asset)
-        else:
-            tmp = pd.Series(data[:], name=asset)
-        stocks = pd.concat([stocks, tmp], axis=1)
+        stocks = pd.concat([stocks, load_quotes(asset)], axis=1)
 
         news = pd.concat([news, news_table(companies.loc[asset].Security)], ignore_index=True)
 
     return stocks, news
 
 
-def process_single_asset(
-    asset: str, companies: pd.DataFrame, moving_average_window: int
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    data = load_quotes([asset])
-    data.index.name = None
-    stocks = data.loc[:, ('Close', asset)]
+def process_single_asset(asset: str, companies: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    moving_average_window = st.slider(
+        'Select the Moving Average window (Select 1 to execute no curve smoothing)',
+        1,
+        200,
+        50,
+        1,
+    )
+
+    stocks = load_quotes(asset)
 
     if moving_average_window != 1:
         moving_average = np.round(stocks.rolling(moving_average_window).mean(), 2)
@@ -133,10 +125,16 @@ def process_single_asset(
     return stocks, news
 
 
-def display_stock_data(stocks: pd.DataFrame, news: pd.DataFrame) -> None:
-    st.line_chart(stocks)
+def display_data(stocks: pd.DataFrame, news: pd.DataFrame) -> None:
+    st.header('Stock Prices')
+    if stocks.empty:
+        st.warning('No stock data available.')
+    else:
+        st.line_chart(stocks)
+
+    st.header('News Articles')
     if news.empty:
-        st.write("""No news articles about the companies.""")
+        st.warning('No news articles about the companies.')
     else:
         st.dataframe(news, width='stretch')
 
@@ -144,8 +142,7 @@ def display_stock_data(stocks: pd.DataFrame, news: pd.DataFrame) -> None:
 def write() -> None:
     st.title('Alfred - Research')
 
-    with st.spinner('Loading About ...'):
-        st.markdown(""" Research tabs """, unsafe_allow_html=True)
+    with st.spinner('Loading ...'):
         companies = load_data()
 
         display_companies_list(companies)
@@ -153,17 +150,16 @@ def write() -> None:
         display_company_info(companies, assets)
 
         if len(assets):
-            moving_average_window = st.slider(
-                'Select the Moving Average window (Select 1 to execute no curve smoothing)',
-                1,
-                200,
-                50,
-                1,
-            )
+            load_data_button = st.button('📊 Load Data', type='primary')
 
-            if len(assets) > 1:
-                stocks, news = process_multiple_assets(assets, companies, moving_average_window)
-            else:
-                stocks, news = process_single_asset(assets[0], companies, moving_average_window)
+            if load_data_button:
+                with st.spinner('Fetching stock data...'):
+                    if len(assets) > 1:
+                        stocks, news = process_multiple_assets(assets, companies)
+                    else:
+                        stocks, news = process_single_asset(assets[0], companies)
 
-            display_stock_data(stocks, news)
+            if st.session_state.stocks_data is not None:
+                display_data(stocks, news)
+            elif not load_data_button:
+                st.info('👆 Click "Load Stock Data" to fetch and display stock information')

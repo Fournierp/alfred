@@ -5,7 +5,6 @@ description = "alfred"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "awesome-streamlit>=20200728.1",
     "bokeh>=3.8.1",
     "curl-cffi==0.7.4",
     "lxml>=6.0.2",
@@ -16,7 +15,7 @@ dependencies = [
     "scikit-learn>=1.7.2",
     "streamlit>=1.51.0",
     "tensorflow>=2.20.0",
-    "yfinance==0.2.58",
+    "yfinance==0.2.54",
 ]
 
 [dependency-groups]
@@ -24,6 +23,7 @@ dev = [
     "coverage>=7.6.12",
     "pre-commit>=4.0.1",
     "pytest>=8.3.4",
+    "ipykernel>=7.1.0",
 ]
 
 [tool.ruff]

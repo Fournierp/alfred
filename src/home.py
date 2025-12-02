@@ -3,12 +3,10 @@ import streamlit as st
 
 def write() -> None:
     st.title('Alfred - Home')
-    with st.spinner('Loading About ...'):
-        st.markdown(
-            """
-            This Streamlit app is a Financial data dashbord that could be used
-            for data visualization, exploration and predicting behavior of
-            Financial quantities.
-            """,
-            unsafe_allow_html=True,
-        )
+    st.markdown(
+        """
+        This Streamlit app is a financial data dashbord. It is a proof of concept for data visualization &
+         exploration and can be customized.
+        """,
+        unsafe_allow_html=True,
+    )
