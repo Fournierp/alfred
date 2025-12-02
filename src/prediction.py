@@ -51,6 +51,20 @@ def predict_next_stock(model: Model, stocks: pd.Series) -> float:
 def write() -> None:
     st.title('Alfred - Prediction')
 
+    if 'stock_cache' not in st.session_state:
+        st.session_state.stock_cache = {}
+
+    with st.sidebar:
+        st.subheader('Cache Management')
+        if st.session_state.stock_cache:
+            st.write(f'Cached stocks: {len(st.session_state.stock_cache)}')
+            assets_list = list(st.session_state.stock_cache.keys())[:5]
+            suffix = '...' if len(st.session_state.stock_cache) > 5 else ''  # noqa: PLR2004
+            st.write(f'Assets: {", ".join(assets_list)}{suffix}')
+        if st.button('🗑️ Clear Cache'):
+            st.session_state.stock_cache = {}
+            st.rerun()
+
     with st.spinner('Loading ...'):
         companies = load_data()
         lstm_model = load_model()
@@ -65,7 +79,10 @@ def write() -> None:
 
         if predict_button:
             with st.spinner('Fetching data and generating prediction...'):
-                stocks = load_quotes(asset)
+                if asset not in st.session_state.stock_cache:
+                    st.session_state.stock_cache[asset] = load_quotes(asset)
+                stocks = st.session_state.stock_cache[asset]
+
                 predicted_val = predict_next_stock(lstm_model, stocks)
                 predicted_price = predicted_val[0][0]
                 current_price = stocks.to_numpy()[-1]
